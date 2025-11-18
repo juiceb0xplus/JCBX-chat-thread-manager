@@ -1,7 +1,7 @@
 # Chat Thread Manager
 
 A small browser-side helper that lets you browse, prune, and export every branch hidden inside TypingMind chats. It plugs into TypingMind's extension slot but is its own project and not an official TypingMind feature.
-
+# Chaotic updates
 ## Highlights
 
 - Lists every message plus its alternate branches in one scrollable panel
