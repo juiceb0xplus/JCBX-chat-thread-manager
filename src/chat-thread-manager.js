@@ -236,15 +236,47 @@
     };
   }
 
-  function getMessagePreview(content) {
+  function extractTextFromContent(content) {
     if (typeof content === 'string') {
-      return content.substring(0, 150);
+      return content;
     }
+
     if (Array.isArray(content)) {
-      const textContent = content.find(c => c.type === 'text');
-      if (textContent) {
-        return textContent.text.substring(0, 150);
+      for (const item of content) {
+        if (!item) {
+          continue;
+        }
+
+        if (typeof item === 'string' && item.trim()) {
+          return item;
+        }
+
+        if (typeof item === 'object') {
+          if (typeof item.text === 'string' && item.text.trim()) {
+            return item.text;
+          }
+
+          if (Array.isArray(item.content)) {
+            const nested = extractTextFromContent(item.content);
+            if (nested) {
+              return nested;
+            }
+          }
+        }
       }
+    }
+
+    if (content && typeof content === 'object' && typeof content.text === 'string') {
+      return content.text;
+    }
+
+    return '';
+  }
+
+  function getMessagePreview(content) {
+    const text = extractTextFromContent(content);
+    if (text) {
+      return truncateText(text, 150);
     }
     return '[No preview available]';
   }
@@ -267,21 +299,20 @@
       return '[No preview available]';
     }
 
-    const userVariant = thread.userMessageContent;
-    if (userVariant !== undefined && userVariant !== null) {
-      const preview = getMessagePreview(userVariant);
-      if (typeof preview === 'string' && preview.trim().length > 0) {
-        return preview;
+    const variantPreview = getMessagePreview(thread.userMessageContent);
+    if (variantPreview !== '[No preview available]') {
+      return variantPreview;
+    }
+
+    const userMessage = thread.messages?.find(msg => msg.role === 'user');
+    if (userMessage) {
+      const fallback = getMessagePreview(userMessage.content);
+      if (fallback !== '[No preview available]') {
+        return fallback;
       }
-      return '[No preview available]';
     }
 
-    if (!thread.messages || thread.messages.length === 0) {
-      return '[Empty thread]';
-    }
-
-    const firstMsg = thread.messages[0];
-    return getMessagePreview(firstMsg.content);
+    return '[User message unavailable]';
   }
 
   // ============================================
