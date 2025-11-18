@@ -1,17 +1,12 @@
 /**
- * TypingMind Data Inspection Script
+ * TypingMind IndexedDB inspection helper (unofficial)
  *
- * USAGE:
+ * How to use:
  * 1. Open TypingMind in your browser
- * 2. Create a test chat with multiple threads:
- *    - Send a message
- *    - Edit or regenerate the assistant's response
- *    - Navigate between threads using arrows
- * 3. Open browser DevTools (F12)
- * 4. Go to Console tab
- * 5. Copy and paste this entire script
- * 6. Press Enter to run
- * 7. Examine the output to understand thread data structure
+ * 2. Make a chat with a few edits/regenerations so there are threads to inspect
+ * 3. Open DevTools → Console
+ * 4. Paste this entire file and hit Enter
+ * 5. Read the logs to see how chats/threads are stored
  */
 
 (function inspectTypingMindData() {
