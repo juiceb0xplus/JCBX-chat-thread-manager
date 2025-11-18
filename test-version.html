@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Thread Manager v2.0.0</title>
+    <style>
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #1a1a1a;
+            color: #e5e5e5;
+        }
+        h1 { color: #667eea; }
+        #result {
+            background: #252525;
+            padding: 20px;
+            border-radius: 12px;
+            margin-top: 20px;
+            border: 1px solid #333;
+        }
+        .success { color: #48bb78; }
+        .error { color: #f5576c; }
+    </style>
+</head>
+<body>
+    <h1>Thread Manager Version Test</h1>
+    <p>This file will load the extension and show the version</p>
+    <div id="result">Loading...</div>
+
+    <script src="./src/chat-thread-manager.js"></script>
+    <script>
+        setTimeout(() => {
+            const version = window.ChatThreadManager?.version || 'NOT LOADED';
+            const result = document.getElementById('result');
+
+            const versionMatch = version === '2.0.0';
+
+            result.innerHTML = `
+                <h2>Version: <span class="${versionMatch ? 'success' : 'error'}">${version}</span></h2>
+                <p>Expected: <strong>2.0.0</strong></p>
+                <p>Status: ${versionMatch ? '<span class="success">✅ CORRECT</span>' : '<span class="error">❌ WRONG VERSION</span>'}</p>
+            `;
+
+            // Also check if new functions exist
+            const functions = {
+                'flattenMessage': typeof window.ChatThreadManager?.flattenMessage === 'function',
+                'exportChat': typeof window.ChatThreadManager?.exportChat === 'function',
+                'flattenChat': typeof window.ChatThreadManager?.flattenChat === 'function',
+                'deleteThread': typeof window.ChatThreadManager?.deleteThread === 'function',
+                'showModal': typeof window.ChatThreadManager?.showModal === 'function'
+            };
+
+            const allExist = Object.values(functions).every(v => v);
+
+            result.innerHTML += `
+                <h3>Function Check:</h3>
+                <ul>
+                    ${Object.entries(functions).map(([name, exists]) =>
+                        `<li class="${exists ? 'success' : 'error'}">${name}: ${exists ? '✅ exists' : '❌ missing'}</li>`
+                    ).join('')}
+                </ul>
+                <p><strong>All functions ${allExist ? '<span class="success">PRESENT ✅</span>' : '<span class="error">MISSING ❌</span>'}</strong></p>
+            `;
+
+            if (versionMatch && allExist) {
+                result.innerHTML += `
+                    <div style="background: #48bb7822; border: 1px solid #48bb78; padding: 15px; border-radius: 8px; margin-top: 15px;">
+                        <h3 style="margin-top: 0; color: #48bb78;">✅ Extension is v2.0.0!</h3>
+                        <p>The file is correct. If TypingMind shows the old UI, it's a caching issue.</p>
+                        <p><strong>Solution:</strong></p>
+                        <ol>
+                            <li>Remove the extension from TypingMind settings</li>
+                            <li>Hard refresh (Ctrl+Shift+R)</li>
+                            <li>Add the extension URL again with ?v=2.0.0 at the end</li>
+                        </ol>
+                    </div>
+                `;
+            } else {
+                result.innerHTML += `
+                    <div style="background: #f5576c22; border: 1px solid #f5576c; padding: 15px; border-radius: 8px; margin-top: 15px;">
+                        <h3 style="margin-top: 0; color: #f5576c;">❌ Wrong version loaded</h3>
+                        <p>The file might not have been updated correctly.</p>
+                    </div>
+                `;
+            }
+        }, 1000);
+    </script>
+</body>
+</html>
