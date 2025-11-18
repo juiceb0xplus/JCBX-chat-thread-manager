@@ -406,6 +406,15 @@
         throw new Error('Invalid message or thread index');
       }
 
+      const confirmed = await showConfirmationModal(
+        'Delete Thread?',
+        'Are you sure you want to delete this thread variant? This action cannot be undone.'
+      );
+
+      if (!confirmed) {
+        return false;
+      }
+
       // Remove thread
       const updatedChat = { ...chat };
       updatedChat.messages = [...chat.messages];
@@ -427,6 +436,10 @@
       showNotification('Thread deleted successfully', 'success');
       console.log(`[${CONFIG.EXTENSION_NAME}] Deleted thread ${threadIndex} from message ${messageIndex}`);
 
+      // Refresh modal
+      closeModal();
+      setTimeout(() => showThreadManagerModal(), 100);
+
       return true;
     } catch (error) {
       console.error(`[${CONFIG.EXTENSION_NAME}] Error deleting thread:`, error);
@@ -446,10 +459,9 @@
 
       const threadCount = chat.messages[messageIndex].threads.length;
 
-      const confirmed = confirm(
-        `Remove ${threadCount} thread(s) from this message?\n\n` +
-        `This will keep only the active variant.\n\n` +
-        `Continue?`
+      const confirmed = await showConfirmationModal(
+        'Flatten Message?',
+        `This will remove ${threadCount} thread variant(s) from this message. Only the currently active version will remain.\n\nThis action cannot be undone.`
       );
 
       if (!confirmed) {
@@ -490,10 +502,9 @@
         return false;
       }
 
-      const confirmed = confirm(
-        `Remove ALL ${analysis.totalThreads} thread(s) from this chat?\n\n` +
-        `Only the currently active conversation will remain.\n\n` +
-        `Continue?`
+      const confirmed = await showConfirmationModal(
+        'Flatten Entire Chat?',
+        `This will remove ALL ${analysis.totalThreads} thread variant(s) from the entire chat history.\n\nOnly the currently active conversation path will be preserved.\n\nThis action cannot be undone.`
       );
 
       if (!confirmed) {
@@ -532,6 +543,57 @@
   // ============================================
   // UI: Thread Manager Modal
   // ============================================
+
+  function showConfirmationModal(title, message) {
+    return new Promise((resolve) => {
+      const overlay = document.createElement('div');
+      overlay.className = 'ctm-overlay ctm-confirmation-overlay';
+      overlay.style.zIndex = '10002'; // Higher than main modal
+
+      const modal = document.createElement('div');
+      modal.className = 'ctm-modal ctm-confirmation-modal';
+
+      const header = document.createElement('div');
+      header.className = 'ctm-modal-header';
+      const h2 = document.createElement('h2');
+      h2.textContent = title;
+      header.appendChild(h2);
+
+      const content = document.createElement('div');
+      content.className = 'ctm-confirmation-content';
+      const p = document.createElement('p');
+      p.innerText = message;
+      content.appendChild(p);
+
+      const footer = document.createElement('div');
+      footer.className = 'ctm-confirmation-footer';
+
+      const cancelBtn = document.createElement('button');
+      cancelBtn.className = 'ctm-btn ctm-btn--ghost';
+      cancelBtn.textContent = 'Cancel';
+      cancelBtn.onclick = () => {
+        overlay.remove();
+        resolve(false);
+      };
+
+      const confirmBtn = document.createElement('button');
+      confirmBtn.className = 'ctm-btn ctm-btn--danger';
+      confirmBtn.textContent = 'Confirm';
+      confirmBtn.onclick = () => {
+        overlay.remove();
+        resolve(true);
+      };
+
+      footer.appendChild(cancelBtn);
+      footer.appendChild(confirmBtn);
+
+      modal.appendChild(header);
+      modal.appendChild(content);
+      modal.appendChild(footer);
+      overlay.appendChild(modal);
+      document.body.appendChild(overlay);
+    });
+  }
 
   async function showThreadManagerModal() {
     try {
@@ -855,18 +917,8 @@
       summaryDescription.className = 'ctm-thread-summary-description';
       summaryDescription.textContent = 'The replies below are alternate branches, not sequential messages.';
 
-      const variantPills = document.createElement('div');
-      variantPills.className = 'ctm-thread-variant-pills';
-      msg.threads.forEach((_, idx) => {
-        const pill = document.createElement('span');
-        pill.className = 'ctm-thread-variant-pill';
-        pill.textContent = `Thread ${idx + 1} of ${msg.threadCount}`;
-        variantPills.appendChild(pill);
-      });
-
       summary.appendChild(summaryHeading);
       summary.appendChild(summaryDescription);
-      summary.appendChild(variantPills);
 
       const flattenButton = document.createElement('button');
       flattenButton.type = 'button';
