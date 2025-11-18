@@ -98,25 +98,31 @@
     button.setAttribute('data-element-id', 'workspace-tab-thread-manager');
     button.title = 'Chat Thread Manager';
 
-    // Find and replace the SVG icon
-    const svg = button.querySelector('svg');
-    if (svg) {
-      svg.setAttribute('width', '16');
-      svg.setAttribute('height', '16');
-      svg.setAttribute('viewBox', '0 0 16 16');
-      svg.setAttribute('fill', 'currentColor');
-      svg.innerHTML = `
+    // Create our custom icon and text
+    const iconHTML = `
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" style="flex-shrink: 0;">
         <path d="M2 3h12v2H2V3zm0 4h12v2H2V7zm0 4h12v2H2v-2z"/>
         <circle cx="4" cy="4" r="1.5" fill="currentColor"/>
         <circle cx="4" cy="8" r="1.5" fill="currentColor"/>
         <circle cx="4" cy="12" r="1.5" fill="currentColor"/>
-      `;
-    }
+      </svg>
+    `;
 
-    // Find and replace the text label
-    const span = button.querySelector('span');
-    if (span) {
-      span.textContent = 'Threads';
+    // Replace button content while preserving structure
+    const existingSvg = button.querySelector('svg');
+    const existingSpan = button.querySelector('span');
+
+    if (existingSvg && existingSpan) {
+      // Replace SVG
+      const tempDiv = document.createElement('div');
+      tempDiv.innerHTML = iconHTML;
+      existingSvg.replaceWith(tempDiv.firstElementChild);
+
+      // Replace text
+      existingSpan.textContent = 'Threads';
+    } else {
+      // Fallback: replace entire innerHTML if structure is different
+      button.innerHTML = iconHTML + '<span style="margin-left: 8px;">Threads</span>';
     }
 
     return button;
@@ -650,14 +656,14 @@
             ">${escapeHtml(msg.content)}${msg.content.length >= 150 ? '...' : ''}</div>
           </div>
           ${msg.hasThreads ? `
-            <div style="margin-left: 16px; color: #666; font-size: 20px; transition: transform 0.2s; transform: rotate(${isExpanded ? '180deg' : '0deg'});">
+            <div class="expand-arrow" style="margin-left: 16px; color: #666; font-size: 20px; transition: transform 0.3s ease; transform: rotate(${isExpanded ? '180deg' : '0deg'});">
               ▼
             </div>
           ` : ''}
         </div>
-        ${msg.hasThreads && isExpanded ? `
+        ${msg.hasThreads ? `
           <div class="message-threads" style="
-            border-top: 1px solid #333;
+            max-height: ${isExpanded ? "2000px" : "0"}; opacity: ${isExpanded ? "1" : "0"}; overflow: hidden; transition: max-height 0.4s ease, opacity 0.3s ease; border-top: ${isExpanded ? "1px solid #333" : "none"};
             padding: 16px 20px;
             background: #1a1a1a;
           ">
@@ -793,14 +799,36 @@
 
       if (msg && msg.hasThreads) {
         header.addEventListener('click', () => {
-          if (state.expandedMessages.has(messageIndex)) {
-            state.expandedMessages.delete(messageIndex);
-          } else {
+          // Toggle state
+          const isExpanding = !state.expandedMessages.has(messageIndex);
+          if (isExpanding) {
             state.expandedMessages.add(messageIndex);
+          } else {
+            state.expandedMessages.delete(messageIndex);
           }
-          // Refresh modal
-          closeModal();
-          setTimeout(() => showThreadManagerModal(), 50);
+
+          // Find the thread content and arrow
+          const messageCard = header.parentElement;
+          const threadContent = messageCard.querySelector('.message-threads');
+          const arrow = header.querySelector('.expand-arrow') || header.querySelector('div:last-child');
+
+          // Smoothly toggle expansion
+          if (threadContent) {
+            if (isExpanding) {
+              threadContent.style.maxHeight = '2000px';
+              threadContent.style.opacity = '1';
+              threadContent.style.borderTop = '1px solid #333';
+            } else {
+              threadContent.style.maxHeight = '0';
+              threadContent.style.opacity = '0';
+              threadContent.style.borderTop = 'none';
+            }
+          }
+
+          // Rotate arrow
+          if (arrow) {
+            arrow.style.transform = isExpanding ? 'rotate(180deg)' : 'rotate(0deg)';
+          }
         });
       }
     });
