@@ -656,14 +656,14 @@
             ">${escapeHtml(msg.content)}${msg.content.length >= 150 ? '...' : ''}</div>
           </div>
           ${msg.hasThreads ? `
-            <div class="expand-arrow" style="margin-left: 16px; color: #666; font-size: 20px; transition: transform 0.3s ease; transform: rotate(${isExpanded ? '180deg' : '0deg'});">
+            <div style="margin-left: 16px; color: #666; font-size: 20px; transition: transform 0.2s; transform: rotate(${isExpanded ? '180deg' : '0deg'});">
               ▼
             </div>
           ` : ''}
         </div>
-        ${msg.hasThreads ? `
+        ${msg.hasThreads && isExpanded ? `
           <div class="message-threads" style="
-            max-height: ${isExpanded ? "2000px" : "0"}; opacity: ${isExpanded ? "1" : "0"}; overflow: hidden; transition: max-height 0.4s ease, opacity 0.3s ease; border-top: ${isExpanded ? "1px solid #333" : "none"};
+            border-top: 1px solid #333;
             padding: 16px 20px;
             background: #1a1a1a;
           ">
@@ -799,36 +799,14 @@
 
       if (msg && msg.hasThreads) {
         header.addEventListener('click', () => {
-          // Toggle state
-          const isExpanding = !state.expandedMessages.has(messageIndex);
-          if (isExpanding) {
-            state.expandedMessages.add(messageIndex);
-          } else {
+          if (state.expandedMessages.has(messageIndex)) {
             state.expandedMessages.delete(messageIndex);
+          } else {
+            state.expandedMessages.add(messageIndex);
           }
-
-          // Find the thread content and arrow
-          const messageCard = header.parentElement;
-          const threadContent = messageCard.querySelector('.message-threads');
-          const arrow = header.querySelector('.expand-arrow') || header.querySelector('div:last-child');
-
-          // Smoothly toggle expansion
-          if (threadContent) {
-            if (isExpanding) {
-              threadContent.style.maxHeight = '2000px';
-              threadContent.style.opacity = '1';
-              threadContent.style.borderTop = '1px solid #333';
-            } else {
-              threadContent.style.maxHeight = '0';
-              threadContent.style.opacity = '0';
-              threadContent.style.borderTop = 'none';
-            }
-          }
-
-          // Rotate arrow
-          if (arrow) {
-            arrow.style.transform = isExpanding ? 'rotate(180deg)' : 'rotate(0deg)';
-          }
+          // Refresh modal
+          closeModal();
+          setTimeout(() => showThreadManagerModal(), 50);
         });
       }
     });
