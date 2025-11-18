@@ -98,18 +98,26 @@
     button.setAttribute('data-element-id', 'workspace-tab-thread-manager');
     button.title = 'Chat Thread Manager';
 
-    // Match the exact structure and styling of default buttons
-    button.style.cssText = settingsButton.style.cssText;
-
-    button.innerHTML = `
-      <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" style="flex-shrink: 0;">
+    // Find and replace the SVG icon
+    const svg = button.querySelector('svg');
+    if (svg) {
+      svg.setAttribute('width', '16');
+      svg.setAttribute('height', '16');
+      svg.setAttribute('viewBox', '0 0 16 16');
+      svg.setAttribute('fill', 'currentColor');
+      svg.innerHTML = `
         <path d="M2 3h12v2H2V3zm0 4h12v2H2V7zm0 4h12v2H2v-2z"/>
         <circle cx="4" cy="4" r="1.5" fill="currentColor"/>
         <circle cx="4" cy="8" r="1.5" fill="currentColor"/>
         <circle cx="4" cy="12" r="1.5" fill="currentColor"/>
-      </svg>
-      <span style="margin-left: 8px;">Threads</span>
-    `;
+      `;
+    }
+
+    // Find and replace the text label
+    const span = button.querySelector('span');
+    if (span) {
+      span.textContent = 'Threads';
+    }
 
     return button;
   }
