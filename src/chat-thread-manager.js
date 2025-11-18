@@ -354,24 +354,12 @@
 
   function buildTypingMindBackupPayload(chat, chatID) {
     const normalizedChat = normalizeChatForExport(chat, chatID);
-    const timestamp = new Date().toISOString();
 
+    // TypingMind expects a simple { data: { chats: [...] } } structure for imports
     return {
-      type: 'typingmind-backup',
-      version: 2,
-      exportedAt: timestamp,
-      source: `${CONFIG.EXTENSION_NAME}@${CONFIG.VERSION}`,
-      meta: {
-        chatCount: 1,
-        includeSettings: false,
-        includePrompts: false
-      },
-      entries: [
-        {
-          key: chatID,
-          value: normalizedChat
-        }
-      ]
+      data: {
+        chats: [normalizedChat]
+      }
     };
   }
 
