@@ -100,80 +100,96 @@ After installation, verify the extension loaded correctly:
 2. **Keyboard shortcut**: Press **Ctrl+Shift+T**
 3. **Console**: Type `window.ChatThreadManager.showModal()` in browser console
 
-### Understanding the Interface
+### Understanding the Interface (v2.0.0)
 
-**Statistics Panel:**
-- **Total Messages**: Number of messages in current chat
-- **Messages with Threads**: How many messages have alternate thread branches
+**Chat Overview Panel:**
+- **Active Messages**: Total number of messages in the current conversation
 - **Total Threads**: Total number of thread variants across all messages
+- **With Variants**: How many messages have alternate thread branches
 
-**Threads List:**
-- Shows all messages that have thread variants
-- Each message displays:
-  - Message index and role (user/assistant)
-  - Preview of message content
-  - Number of threads
-  - List of all thread variants
+**Action Buttons:**
+- **💾 Export Chat as JSON**: Download the entire chat as a JSON file (no localStorage quota issues!)
+- **🗜️ Flatten Entire Chat**: Remove all threads from the chat (appears only if threads exist)
 
-**Thread Details:**
-- Creation timestamp
-- Preview of thread content
-- Number of messages in that branch
-- Delete button
+**Active Messages List:**
+- Shows ALL messages in the current conversation (active path)
+- Messages with thread variants are highlighted
+- Click any message with variants to expand and see its threads
 
-**Backups Section:**
-- Lists recent backups (up to 5)
-- Shows backup timestamp
-- Restore button for each backup
+**Message Card:**
+- Role badge (user/assistant/system)
+- Message number and preview
+- Variant count badge (if threads exist)
+- Expandable dropdown arrow (if threads exist)
 
-### Features
+**Thread Variants (when expanded):**
+- **Flatten Message** button: Remove all variants from this specific message
+- List of thread variants showing:
+  - Creation timestamp
+  - Number of messages in that branch
+  - Preview of thread content
+  - 🗑️ Delete button for each variant
 
-#### 1. View Threads
+### Features (v2.0.0)
+
+#### 1. View Active Messages & Threads
 
 Simply open the Thread Manager to see:
-- Which messages have thread variants
-- How many threads exist
-- When each thread was created
-- Preview of thread content
+- All messages in your active conversation
+- Which messages have thread variants (highlighted)
+- Statistics about messages and threads
+- Click any message to expand and view its variants
 
-#### 2. Delete Individual Thread
+#### 2. Export Chat as JSON
 
-To remove a specific thread variant:
+To create a manual backup of your chat:
 
 1. Open Thread Manager
-2. Find the message with the thread you want to delete
-3. Locate the specific thread variant
-4. Click the **🗑️ Delete** button
+2. Click **💾 Export Chat as JSON** button
+3. Chat downloads as a JSON file to your computer
+4. Can be imported back via TypingMind's import feature
+
+**Benefits**:
+- No localStorage quota issues
+- Portable backup you can save anywhere
+- Can share or archive chats
+
+#### 3. Delete Individual Thread Variant
+
+To remove a specific thread variant from a message:
+
+1. Open Thread Manager
+2. Click on a message to expand it
+3. Find the thread variant you want to delete
+4. Click the **🗑️ Delete** button next to that variant
 5. Confirm the deletion
-6. A backup is automatically created
+6. Changes save automatically
 
-**⚠️ Warning**: This is permanent! Use backups to restore if needed.
+**⚠️ Warning**: This is permanent! Export chat first if unsure.
 
-#### 3. Flatten Chat
+#### 4. Flatten Individual Message
 
-To remove **ALL** threads and keep only the active conversation:
+To remove **ALL** thread variants from a specific message:
 
 1. Open Thread Manager
-2. Click **🗜️ Flatten Chat** button at the top
-3. Review the confirmation dialog (shows how many threads will be removed)
+2. Click on a message to expand it
+3. Click **Flatten Message** button
+4. Confirm the operation
+5. All variants removed, only active message remains
+
+**Use Case**: Clean up a specific message that has too many variants
+
+#### 5. Flatten Entire Chat
+
+To remove **ALL** threads from the entire chat:
+
+1. Open Thread Manager
+2. Click **🗜️ Flatten Entire Chat** button at the top
+3. Review confirmation (shows how many threads will be removed)
 4. Click OK to confirm
-5. A backup is automatically created
-6. Reload the page to see changes
+5. Reload page to see changes
 
-**Use Case**: Archive old chats, reduce storage, clean up exploration branches
-
-#### 4. Restore from Backup
-
-If you deleted threads by mistake:
-
-1. Open Thread Manager
-2. Scroll to Backups section
-3. Find the backup (sorted by date, newest first)
-4. Click **Restore** button
-5. Confirm restoration
-6. Reload page to see restored chat
-
-**Note**: Backups are stored in browser localStorage. If you clear browser data, backups are lost.
+**Use Case**: Archive old chats, reduce storage, clean up all exploration branches
 
 ---
 
@@ -231,14 +247,14 @@ If you deleted threads by mistake:
 
 ### Flatten/Delete Not Working
 
-1. **Check Backups are Being Created**:
-   - Open Thread Manager
-   - Check Backups section has entries
-   - If no backups, localStorage might be full
+1. **Check IndexedDB Access**:
+   - Ensure browser has IndexedDB enabled
+   - Check for browser permission issues
+   - Try in a different browser
 
-2. **Check Browser Storage**:
-   - DevTools → Application → Local Storage
-   - Ensure you have enough space
+2. **Export First**:
+   - Use the Export feature to backup your chat
+   - Then try the operation again
 
 3. **Try Manual Console Command**:
    ```javascript
@@ -261,7 +277,7 @@ If you deleted threads by mistake:
 
 ## Advanced Usage
 
-### Console API
+### Console API (v2.0.0)
 
 The extension exposes a console API for advanced users:
 
@@ -272,35 +288,29 @@ window.ChatThreadManager.getState()
 // Open modal programmatically
 window.ChatThreadManager.showModal()
 
-// Delete specific thread
+// Delete specific thread variant
 await window.ChatThreadManager.deleteThread(chatID, messageIndex, threadIndex)
 
-// Flatten chat
+// Flatten entire chat (remove all threads)
 await window.ChatThreadManager.flattenChat(chatID)
 
-// Create manual backup
-await window.ChatThreadManager.createBackup(chatID, chatData)
+// Flatten specific message (remove all threads from one message)
+await window.ChatThreadManager.flattenMessage(chatID, messageIndex)
 
-// List backups
-window.ChatThreadManager.listBackups(chatID)
-
-// Restore backup
-await window.ChatThreadManager.restoreBackup(backupKey)
+// Export chat as JSON (downloads file)
+window.ChatThreadManager.exportChat(chatData, chatID)
 
 // Check version
-window.ChatThreadManager.version
+window.ChatThreadManager.version // "2.0.0"
 ```
 
 ### Bulk Operations (Advanced)
 
-To delete all threads from a specific message:
+To flatten all messages that have threads:
 
 ```javascript
 // Get chat ID
 const chatID = 'CHAT_' + window.location.hash.match(/chat=([^&]+)/)[1];
-
-// Message index (e.g., message 4)
-const messageIndex = 4;
 
 // Get chat data
 const request = indexedDB.open('keyval-store');
@@ -308,17 +318,24 @@ request.onsuccess = async (e) => {
   const db = e.target.result;
   const tx = db.transaction(['keyval'], 'readonly');
   const store = tx.objectStore('keyval');
-  const chat = await store.get(chatID);
+  const getReq = store.get(chatID);
 
-  // Count threads
-  const threadCount = chat.messages[messageIndex].threads?.length || 0;
-  console.log(`Message ${messageIndex} has ${threadCount} threads`);
+  getReq.onsuccess = async () => {
+    const chat = getReq.result;
 
-  // Delete each thread (from last to first)
-  for (let i = threadCount - 1; i >= 0; i--) {
-    await window.ChatThreadManager.deleteThread(chatID, messageIndex, i);
-    console.log(`Deleted thread ${i}`);
-  }
+    // Find all messages with threads
+    const messagesWithThreads = chat.messages
+      .map((msg, idx) => ({ idx, count: msg.threads?.length || 0 }))
+      .filter(m => m.count > 0);
+
+    console.log(`Found ${messagesWithThreads.length} messages with threads`);
+
+    // Flatten each message
+    for (const msg of messagesWithThreads) {
+      await window.ChatThreadManager.flattenMessage(chatID, msg.idx);
+      console.log(`Flattened message ${msg.idx}`);
+    }
+  };
 };
 ```
 
@@ -335,54 +352,42 @@ To remove the extension:
 5. Save
 6. Reload the page
 
-**Note**: Backups will remain in localStorage until you manually clear them.
-
-### Clear Backups
-
-To remove all backups created by this extension:
-
-```javascript
-// Clear all backups for all chats
-Object.keys(localStorage)
-  .filter(key => key.startsWith('CTM_BACKUP_'))
-  .forEach(key => localStorage.removeItem(key));
-
-console.log('All backups cleared');
-```
+**Note**: The extension doesn't store any data in localStorage. All data is in TypingMind's IndexedDB.
 
 ---
 
 ## Safety & Privacy
 
-### Data Storage
+### Data Storage (v2.0.0)
 
 - **Extension Code**: Loaded from your specified URL
-- **Backups**: Stored in browser localStorage (client-side only)
+- **No localStorage**: Extension doesn't use localStorage (no quota issues!)
 - **No Server Communication**: Extension operates entirely client-side
 - **No Data Transmission**: Your chat data never leaves your browser
+- **Manual Exports**: JSON exports are downloaded to your computer only
 
 ### Security Considerations
 
 1. **Trust the Source**: Only install from trusted URLs you control
-2. **Backup Limits**: Maximum 5 backups per chat (configurable)
-3. **Storage Limits**: Browser localStorage has ~5-10MB limit
-4. **Data Persistence**: Backups survive page reloads but not cache clearing
+2. **No Automatic Backups**: You control when to export chat data
+3. **Client-Side Only**: All operations happen in your browser
+4. **Data Control**: Exports are standard JSON files you can inspect
 
 ---
 
-## Best Practices
+## Best Practices (v2.0.0)
 
 ### Before Using Destructive Operations
 
-1. **Manual Backup**: Export chat as markdown first (use TypingMind's export)
+1. **Export First**: Use the "Export Chat as JSON" button to backup
 2. **Test on Non-Critical Chat**: Try on a test chat first
 3. **Understand Threads**: Know which threads you want to keep
-4. **Check Backups Work**: Verify backups are being created
+4. **Review Before Flattening**: Expand messages to see what will be removed
 
 ### Regular Maintenance
 
-1. **Clean Old Backups**: Periodically check and remove old backups
-2. **Monitor Storage**: Check localStorage usage if you have many chats
+1. **Export Important Chats**: Periodically export chats you want to keep
+2. **Archive Exports**: Store JSON files in a safe location
 3. **Update Extension**: Pull latest version if bugs are fixed
 
 ### When to Flatten
@@ -390,6 +395,7 @@ console.log('All backups cleared');
 - **Archive Chat**: Before archiving, flatten to save space
 - **Share Chat**: Before exporting, flatten to share only main thread
 - **Clean Exploration**: After trying many variants, keep only the best
+- **Reduce Clutter**: Remove experimental branches you don't need
 
 ---
 
@@ -413,22 +419,22 @@ Include:
 
 ---
 
-## FAQ
+## FAQ (v2.0.0)
 
 **Q: Will this work on mobile?**
 A: Should work on mobile browsers, but UI optimized for desktop. Test before use.
 
 **Q: Can I undo a flatten operation?**
-A: Yes, use the Restore feature in Backups section.
+A: No automatic undo. Export your chat first using the "Export Chat as JSON" button.
 
-**Q: How many backups are kept?**
-A: 5 per chat by default (configurable in code).
+**Q: Where are backups stored?**
+A: No automatic backups. You manually export chats as JSON files to your computer.
 
 **Q: Does this work with TypingMind Teams?**
 A: Should work, but test on non-critical data first.
 
-**Q: Can I export backups?**
-A: Not built-in, but you can copy from localStorage manually.
+**Q: Can I restore from an exported JSON?**
+A: Yes, use TypingMind's built-in import feature to restore exported chats.
 
 **Q: Will updates break my installation?**
 A: If using jsDelivr CDN with `@main`, you get auto-updates. Pin to specific version for stability.
@@ -436,17 +442,30 @@ A: If using jsDelivr CDN with `@main`, you get auto-updates. Pin to specific ver
 **Q: Does this work offline?**
 A: Once loaded, yes. But you need internet to load extension initially.
 
+**Q: Why did you remove automatic backups?**
+A: To avoid localStorage quota exceeded errors. Manual exports give you more control.
+
 ---
 
 ## Version History
+
+### v2.0.0 (2025-11-18) - Major Refactor
+- **Breaking Change**: Removed automatic backups (localStorage quota issues)
+- **New**: Manual export as JSON file (downloads to computer)
+- **New**: UI now shows active messages with expandable thread lists
+- **New**: Flatten individual messages (not just entire chat)
+- **New**: Modern dark-mode theme with gradient designs
+- **Fixed**: Sidebar button alignment
+- **Improved**: Better UX with expandable message cards
+- **Improved**: No localStorage usage - no quota errors
 
 ### v1.0.0 (2025-11-18)
 - Initial release
 - Thread viewer
 - Delete individual threads
 - Flatten chat
-- Automatic backups
-- Restore functionality
+- Automatic backups (removed in v2.0.0)
+- Restore functionality (removed in v2.0.0)
 
 ---
 
