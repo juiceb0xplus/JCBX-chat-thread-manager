@@ -733,10 +733,40 @@
       const actions = document.createElement('div');
       actions.className = 'ctm-card-actions';
 
-      const summary = document.createElement('span');
+      const summary = document.createElement('div');
       summary.className = 'ctm-thread-summary';
       const totalMessages = msg.threads.reduce((acc, thread) => acc + (thread.messages?.length || 0), 0);
-      summary.textContent = `${msg.threadCount} variant${msg.threadCount !== 1 ? 's' : ''} • ${totalMessages} total message${totalMessages !== 1 ? 's' : ''}`;
+
+      const summaryHeading = document.createElement('div');
+      summaryHeading.className = 'ctm-thread-summary-heading';
+
+      const summaryTitle = document.createElement('span');
+      summaryTitle.className = 'ctm-thread-summary-title';
+      summaryTitle.textContent = `${msg.threadCount} alternate branch${msg.threadCount !== 1 ? 'es' : ''}`;
+
+      const summaryStats = document.createElement('span');
+      summaryStats.className = 'ctm-thread-summary-stats';
+      summaryStats.textContent = `${totalMessages} total message${totalMessages !== 1 ? 's' : ''}`;
+
+      summaryHeading.appendChild(summaryTitle);
+      summaryHeading.appendChild(summaryStats);
+
+      const summaryDescription = document.createElement('p');
+      summaryDescription.className = 'ctm-thread-summary-description';
+      summaryDescription.textContent = 'The replies below are alternate branches, not sequential messages.';
+
+      const variantPills = document.createElement('div');
+      variantPills.className = 'ctm-thread-variant-pills';
+      msg.threads.forEach((_, idx) => {
+        const pill = document.createElement('span');
+        pill.className = 'ctm-thread-variant-pill';
+        pill.textContent = `Thread ${idx + 1} of ${msg.threadCount}`;
+        variantPills.appendChild(pill);
+      });
+
+      summary.appendChild(summaryHeading);
+      summary.appendChild(summaryDescription);
+      summary.appendChild(variantPills);
 
       const flattenButton = document.createElement('button');
       flattenButton.type = 'button';
@@ -770,15 +800,31 @@
     const details = document.createElement('div');
     details.className = 'ctm-thread-details';
 
+    const headerRow = document.createElement('div');
+    headerRow.className = 'ctm-thread-card-header';
+
+    const threadLabel = document.createElement('span');
+    threadLabel.className = 'ctm-thread-label';
+    threadLabel.textContent = `Thread ${threadIdx + 1}`;
+
+    const followUpCount = thread.messages?.length || 0;
+    const followUpPill = document.createElement('span');
+    followUpPill.className = 'ctm-thread-message-pill';
+    followUpPill.textContent = `${followUpCount} follow-up message${followUpCount !== 1 ? 's' : ''}`;
+
+    headerRow.appendChild(threadLabel);
+    headerRow.appendChild(followUpPill);
+
     const meta = document.createElement('div');
     meta.className = 'ctm-thread-meta';
     const createdAt = thread.createdAt ? new Date(thread.createdAt).toLocaleString() : 'Unknown date';
-    meta.textContent = `Created: ${createdAt} • ${thread.messages?.length || 0} message(s)`;
+    meta.textContent = `Created: ${createdAt}`;
 
     const preview = document.createElement('p');
     preview.className = 'ctm-thread-preview';
     preview.textContent = getThreadPreview(thread);
 
+    details.appendChild(headerRow);
     details.appendChild(meta);
     details.appendChild(preview);
 
@@ -1334,6 +1380,56 @@
     .ctm-thread-summary {
       font-size: 13px;
       color: #9ca3af;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      background: rgba(102, 126, 234, 0.08);
+      border: 1px solid rgba(118, 75, 162, 0.35);
+      border-radius: 12px;
+      padding: 12px 16px;
+    }
+
+    .ctm-thread-summary-heading {
+      display: flex;
+      justify-content: space-between;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: #c4b5fd;
+      font-weight: 600;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .ctm-thread-summary-title {
+      color: #e0e7ff;
+    }
+
+    .ctm-thread-summary-stats {
+      color: #a5b4fc;
+      font-weight: 500;
+    }
+
+    .ctm-thread-summary-description {
+      margin: 0;
+      font-size: 13px;
+      color: #d1d5db;
+    }
+
+    .ctm-thread-variant-pills {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .ctm-thread-variant-pill {
+      background: rgba(103, 232, 249, 0.08);
+      border: 1px solid rgba(103, 232, 249, 0.4);
+      border-radius: 999px;
+      padding: 4px 10px;
+      font-size: 12px;
+      color: #67e8f9;
+      font-weight: 600;
     }
 
     .ctm-thread-list {
@@ -1345,7 +1441,7 @@
     .ctm-thread-card {
       display: flex;
       justify-content: space-between;
-      align-items: center;
+      align-items: flex-start;
       gap: 16px;
       padding: 14px;
       background: #252525;
@@ -1357,6 +1453,36 @@
 
     .ctm-thread-card:hover {
       border-color: #444;
+    }
+
+    .ctm-thread-card-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 4px;
+      flex-wrap: wrap;
+    }
+
+    .ctm-thread-label {
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #f0abfc;
+      font-weight: 700;
+      padding: 4px 8px;
+      border-radius: 8px;
+      background: rgba(240, 171, 252, 0.12);
+      border: 1px solid rgba(240, 171, 252, 0.3);
+    }
+
+    .ctm-thread-message-pill {
+      font-size: 12px;
+      color: #bbf7d0;
+      background: rgba(34, 197, 94, 0.12);
+      border: 1px solid rgba(34, 197, 94, 0.35);
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-weight: 600;
     }
 
     .ctm-thread-details {
