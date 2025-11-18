@@ -7,7 +7,7 @@ A browser extension for TypingMind that lets you manage chat threads created thr
 - View all messages in your chat with their thread variants
 - Delete specific thread branches you don't need
 - Flatten messages or entire chats to clean up
-- Export chats as JSON for backup
+- Export chats in TypingMind-compatible format (importable!)
 - Dark-themed UI that matches TypingMind
 
 ## Quick Start
@@ -38,7 +38,7 @@ Just upload `src/chat-thread-manager.js` to any web server and use that URL inst
 
 **Flatten**: Clean up individual messages or the entire chat
 
-**Export**: Download chat as JSON (no storage quota issues)
+**Export**: Download chat in TypingMind's native format - import it back anytime!
 
 **Keyboard shortcut**: `Ctrl+Shift+T` to open
 

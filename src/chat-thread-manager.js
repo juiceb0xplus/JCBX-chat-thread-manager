@@ -1,13 +1,13 @@
 /**
  * TypingMind Chat Thread Manager Extension
- * Version: 2.0.0
+ * Version: 2.1.0
  *
  * Features:
  * - View all active messages in current chat
  * - Expand messages to see their thread variants
  * - Delete individual threads
  * - Flatten individual messages or entire chat
- * - Manual backup export (JSON download)
+ * - Export chat in TypingMind-compatible format (importable)
  *
  * Installation:
  * 1. Host this file on a public URL (GitHub Pages, etc.)
@@ -25,7 +25,7 @@
 
   const CONFIG = {
     EXTENSION_NAME: 'ChatThreadManager',
-    VERSION: '2.0.0',
+    VERSION: '2.1.0',
     DB_NAME: 'keyval-store',
     OBJECT_STORE: 'keyval'
   };
@@ -251,21 +251,19 @@
 
   function exportChatAsJSON(chat, chatID) {
     try {
-      const exportData = {
-        version: CONFIG.VERSION,
-        exportedAt: new Date().toISOString(),
-        chatID: chatID,
-        chatData: chat
-      };
-
-      const jsonString = JSON.stringify(exportData, null, 2);
+      // Export in TypingMind's native format (raw chat object)
+      // This ensures compatibility with TypingMind's import feature
+      // Previous format wrapped the chat in metadata, which caused import errors
+      const jsonString = JSON.stringify(chat, null, 2);
       const blob = new Blob([jsonString], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
 
-      // Create download link
+      // Create download link with metadata in filename
       const link = document.createElement('a');
       link.href = url;
-      link.download = `chat-backup-${chatID.replace('CHAT_', '')}-${Date.now()}.json`;
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
+      const chatName = chat.chatTitle ? chat.chatTitle.slice(0, 30).replace(/[^a-z0-9]/gi, '-') : 'chat';
+      link.download = `${chatName}-${timestamp}.json`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -273,8 +271,8 @@
       // Clean up URL
       setTimeout(() => URL.revokeObjectURL(url), 100);
 
-      showNotification('Chat exported successfully!', 'success');
-      console.log(`[${CONFIG.EXTENSION_NAME}] Chat exported`);
+      showNotification('Chat exported successfully! Compatible with TypingMind import.', 'success');
+      console.log(`[${CONFIG.EXTENSION_NAME}] Chat exported in TypingMind format`);
     } catch (error) {
       console.error(`[${CONFIG.EXTENSION_NAME}] Error exporting chat:`, error);
       showNotification(`Export failed: ${error.message}`, 'error');
@@ -521,7 +519,7 @@
       </div>
 
       <div style="margin-bottom: 24px; display: flex; gap: 12px;">
-        <button id="export-chat-button" style="
+        <button id="export-chat-button" title="Export chat in TypingMind-compatible format" style="
           flex: 1;
           padding: 12px 20px;
           background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -535,7 +533,7 @@
           box-shadow: 0 4px 6px rgba(102, 126, 234, 0.3);
         " onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 12px rgba(102, 126, 234, 0.4)'"
            onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 6px rgba(102, 126, 234, 0.3)'">
-          💾 Export Chat as JSON
+          💾 Export Chat
         </button>
         ${analysis.totalThreads > 0 ? `
           <button id="flatten-chat-button" style="
