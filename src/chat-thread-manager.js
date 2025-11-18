@@ -850,7 +850,8 @@
       modal.remove();
     }
     state.uiElements.modal = null;
-    state.expandedMessages.clear();
+    // Don't clear expandedMessages - let it persist across modal refreshes
+    // It will be cleared when navigating to a different chat (see observeChatChanges)
   }
 
   // ============================================
