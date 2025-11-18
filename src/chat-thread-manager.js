@@ -37,6 +37,7 @@
   const state = {
     currentChatID: null,
     currentChat: null,
+    analysis: null,
     uiElements: {},
     isInitialized: false,
     expandedMessages: new Set() // Track which messages are expanded
@@ -93,37 +94,49 @@
 
   function createThreadManagerButton() {
     const settingsButton = document.querySelector('[data-element-id="workspace-tab-settings"]');
-    const button = settingsButton.cloneNode(true);
-
+    const button = document.createElement('button');
     button.setAttribute('data-element-id', 'workspace-tab-thread-manager');
+    button.type = 'button';
     button.title = 'Chat Thread Manager';
+    button.setAttribute('aria-label', 'Open Thread Manager');
 
-    // Create our custom icon and text
-    const iconHTML = `
-      <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" style="flex-shrink: 0;">
-        <path d="M2 3h12v2H2V3zm0 4h12v2H2V7zm0 4h12v2H2v-2z"/>
-        <circle cx="4" cy="4" r="1.5" fill="currentColor"/>
-        <circle cx="4" cy="8" r="1.5" fill="currentColor"/>
-        <circle cx="4" cy="12" r="1.5" fill="currentColor"/>
-      </svg>
-    `;
-
-    // Replace button content while preserving structure
-    const existingSvg = button.querySelector('svg');
-    const existingSpan = button.querySelector('span');
-
-    if (existingSvg && existingSpan) {
-      // Replace SVG
-      const tempDiv = document.createElement('div');
-      tempDiv.innerHTML = iconHTML;
-      existingSvg.replaceWith(tempDiv.firstElementChild);
-
-      // Replace text
-      existingSpan.textContent = 'Threads';
-    } else {
-      // Fallback: replace entire innerHTML if structure is different
-      button.innerHTML = iconHTML + '<span style="margin-left: 8px;">Threads</span>';
+    if (settingsButton) {
+      button.className = settingsButton.className;
+      const variant = settingsButton.getAttribute('data-variant');
+      if (variant) {
+        button.setAttribute('data-variant', variant);
+      }
     }
+
+    const icon = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    icon.setAttribute('width', '16');
+    icon.setAttribute('height', '16');
+    icon.setAttribute('viewBox', '0 0 24 24');
+    icon.setAttribute('fill', 'none');
+    icon.setAttribute('aria-hidden', 'true');
+
+    const bubble = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    bubble.setAttribute('d', 'M5 4h14a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2h-3.2L12 18l-.8-4H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z');
+    bubble.setAttribute('stroke', 'currentColor');
+    bubble.setAttribute('stroke-width', '1.5');
+    bubble.setAttribute('stroke-linejoin', 'round');
+    bubble.setAttribute('fill', 'none');
+
+    const lines = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    lines.setAttribute('d', 'M8 8h8M8 11h5M4 16h6l.5 3 3-3H19');
+    lines.setAttribute('stroke', 'currentColor');
+    lines.setAttribute('stroke-width', '1.5');
+    lines.setAttribute('stroke-linecap', 'round');
+    lines.setAttribute('stroke-linejoin', 'round');
+
+    icon.appendChild(bubble);
+    icon.appendChild(lines);
+
+    const label = document.createElement('span');
+    label.textContent = 'Threads';
+
+    button.appendChild(icon);
+    button.appendChild(label);
 
     return button;
   }
@@ -437,6 +450,7 @@
 
       // Analyze chat
       const analysis = analyzeChat(chat);
+      state.analysis = analysis;
 
       // Create modal
       const modal = createModal(chat, analysis);
@@ -453,303 +467,332 @@
   function createModal(chat, analysis) {
     const modal = document.createElement('div');
     modal.id = 'chat-thread-manager-modal';
-    modal.style.cssText = `
-      position: fixed;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      background: rgba(0, 0, 0, 0.85);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      z-index: 10000;
-      backdrop-filter: blur(8px);
-    `;
+    modal.className = 'ctm-overlay';
 
     const content = document.createElement('div');
-    content.style.cssText = `
-      background: #1a1a1a;
-      color: #e5e5e5;
-      padding: 32px;
-      border-radius: 16px;
-      max-width: 900px;
-      width: 90%;
-      max-height: 85vh;
-      overflow-y: auto;
-      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
-      border: 1px solid #333;
-    `;
-
-    content.innerHTML = `
-      <div style="margin-bottom: 24px; display: flex; justify-content: space-between; align-items: center;">
-        <h2 style="margin: 0; font-size: 28px; font-weight: 700; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">
-          Thread Manager
-        </h2>
-        <button id="close-thread-modal" style="
-          background: transparent;
-          border: none;
-          color: #999;
-          font-size: 32px;
-          cursor: pointer;
-          padding: 0;
-          width: 32px;
-          height: 32px;
-          line-height: 1;
-          transition: color 0.2s;
-        " onmouseover="this.style.color='#fff'" onmouseout="this.style.color='#999'">&times;</button>
-      </div>
-
-      <div style="margin-bottom: 24px; padding: 20px; background: linear-gradient(135deg, #667eea22 0%, #764ba222 100%); border-radius: 12px; border: 1px solid #333;">
-        <h3 style="margin: 0 0 16px 0; font-size: 16px; font-weight: 600; color: #fff;">Chat Overview</h3>
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 16px;">
-          <div style="background: #252525; padding: 12px; border-radius: 8px;">
-            <div style="font-size: 11px; color: #999; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px;">Active Messages</div>
-            <div style="font-size: 24px; font-weight: 700; color: #667eea;">${analysis.totalMessages}</div>
-          </div>
-          <div style="background: #252525; padding: 12px; border-radius: 8px;">
-            <div style="font-size: 11px; color: #999; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px;">Total Threads</div>
-            <div style="font-size: 24px; font-weight: 700; color: #764ba2;">${analysis.totalThreads}</div>
-          </div>
-          <div style="background: #252525; padding: 12px; border-radius: 8px;">
-            <div style="font-size: 11px; color: #999; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px;">With Variants</div>
-            <div style="font-size: 24px; font-weight: 700; color: #48bb78;">${analysis.activeMessages.filter(m => m.hasThreads).length}</div>
-          </div>
-        </div>
-      </div>
-
-      <div style="margin-bottom: 24px; display: flex; gap: 12px;">
-        <button id="export-chat-button" title="Export chat in TypingMind-compatible format" style="
-          flex: 1;
-          padding: 12px 20px;
-          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-          color: white;
-          border: none;
-          border-radius: 10px;
-          font-size: 14px;
-          font-weight: 600;
-          cursor: pointer;
-          transition: all 0.2s;
-          box-shadow: 0 4px 6px rgba(102, 126, 234, 0.3);
-        " onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 12px rgba(102, 126, 234, 0.4)'"
-           onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 6px rgba(102, 126, 234, 0.3)'">
-          💾 Export Chat
-        </button>
-        ${analysis.totalThreads > 0 ? `
-          <button id="flatten-chat-button" style="
-            flex: 1;
-            padding: 12px 20px;
-            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-            color: white;
-            border: none;
-            border-radius: 10px;
-            font-size: 14px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.2s;
-            box-shadow: 0 4px 6px rgba(245, 87, 108, 0.3);
-          " onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 12px rgba(245, 87, 108, 0.4)'"
-             onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 6px rgba(245, 87, 108, 0.3)'">
-            🗜️ Flatten Entire Chat
-          </button>
-        ` : ''}
-      </div>
-
-      <div style="margin-bottom: 16px;">
-        <h3 style="margin: 0 0 12px 0; font-size: 18px; font-weight: 600; color: #fff;">Active Messages</h3>
-        <p style="margin: 0; font-size: 13px; color: #999;">Click any message to expand and view its thread variants</p>
-      </div>
-
-      ${analysis.totalMessages === 0 ? `
-        <div style="padding: 60px 20px; text-align: center; color: #666;">
-          <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" style="margin: 0 auto 20px; opacity: 0.3;">
-            <circle cx="12" cy="12" r="10" stroke-width="2"/>
-            <line x1="12" y1="8" x2="12" y2="12" stroke-width="2" stroke-linecap="round"/>
-            <circle cx="12" cy="16" r="1" fill="currentColor"/>
-          </svg>
-          <p style="margin: 0; font-size: 16px; color: #999;">No messages found in this chat</p>
-        </div>
-      ` : `
-        <div id="messages-list" style="display: flex; flex-direction: column; gap: 12px;">
-          ${analysis.activeMessages.map((msg, idx) => createMessageCard(msg, idx)).join('')}
-        </div>
-      `}
-    `;
-
+    content.className = 'ctm-modal';
     modal.appendChild(content);
 
-    // Setup event listeners
+    content.appendChild(createModalHeader());
+    content.appendChild(createOverviewSection(analysis));
+    content.appendChild(createActionRow(analysis));
+    content.appendChild(createHelperText());
+    content.appendChild(createMessagesSection(analysis));
+
     setupModalEventListeners(modal);
 
     return modal;
   }
 
-  function createMessageCard(msg, idx) {
-    const roleColors = {
-      user: '#3b82f6',
-      assistant: '#8b5cf6',
-      system: '#10b981'
-    };
+  function createModalHeader() {
+    const header = document.createElement('div');
+    header.className = 'ctm-modal-header';
 
-    const roleColor = roleColors[msg.role] || '#6b7280';
-    const isExpanded = state.expandedMessages.has(msg.index);
+    const title = document.createElement('h2');
+    title.textContent = 'Thread Manager';
 
-    return `
-      <div style="
-        border: 1px solid ${msg.hasThreads ? '#444' : '#2a2a2a'};
-        border-radius: 12px;
-        background: ${msg.hasThreads ? '#222' : '#1f1f1f'};
-        overflow: hidden;
-        transition: all 0.2s;
-      ">
-        <div
-          class="message-header"
-          data-message-index="${msg.index}"
-          style="
-            padding: 16px 20px;
-            cursor: ${msg.hasThreads ? 'pointer' : 'default'};
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            transition: background 0.2s;
-          "
-          ${msg.hasThreads ? `onmouseover="this.style.background='#2a2a2a'" onmouseout="this.style.background='transparent'"` : ''}
-        >
-          <div style="flex: 1; min-width: 0;">
-            <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 8px;">
-              <span style="
-                display: inline-block;
-                padding: 4px 12px;
-                background: ${roleColor}22;
-                color: ${roleColor};
-                border-radius: 6px;
-                font-size: 11px;
-                font-weight: 600;
-                text-transform: uppercase;
-                letter-spacing: 0.5px;
-              ">${msg.role}</span>
-              <span style="font-size: 12px; color: #666;">Message ${msg.index + 1}</span>
-              ${msg.hasThreads ? `
-                <span style="
-                  padding: 4px 10px;
-                  background: #764ba222;
-                  color: #764ba2;
-                  border-radius: 6px;
-                  font-size: 11px;
-                  font-weight: 600;
-                ">
-                  ${msg.threadCount} variant${msg.threadCount !== 1 ? 's' : ''}
-                </span>
-              ` : ''}
-            </div>
-            <div style="
-              font-size: 14px;
-              color: #ccc;
-              line-height: 1.5;
-              overflow: hidden;
-              text-overflow: ellipsis;
-              display: -webkit-box;
-              -webkit-line-clamp: 2;
-              -webkit-box-orient: vertical;
-            ">${escapeHtml(msg.content)}${msg.content.length >= 150 ? '...' : ''}</div>
-          </div>
-          ${msg.hasThreads ? `
-            <div class="expand-arrow" style="margin-left: 16px; color: #666; font-size: 20px; transition: transform 0.3s ease; transform: rotate(${isExpanded ? '180deg' : '0deg'});">
-              ▼
-            </div>
-          ` : ''}
-        </div>
-        ${msg.hasThreads ? `
-          <div class="message-threads" style="
-            max-height: ${isExpanded ? "2000px" : "0"}; opacity: ${isExpanded ? "1" : "0"}; overflow: hidden; transition: max-height 0.4s ease, opacity 0.3s ease; border-top: ${isExpanded ? "1px solid #333" : "none"};
-            padding: 16px 20px;
-            background: #1a1a1a;
-          ">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
-              <h4 style="margin: 0; font-size: 14px; font-weight: 600; color: #999;">Thread Variants</h4>
-              ${msg.threadCount > 0 ? `
-                <button
-                  class="flatten-message-btn"
-                  data-message-index="${msg.index}"
-                  style="
-                    padding: 6px 14px;
-                    background: #f5576c22;
-                    color: #f5576c;
-                    border: 1px solid #f5576c44;
-                    border-radius: 6px;
-                    font-size: 12px;
-                    font-weight: 600;
-                    cursor: pointer;
-                    transition: all 0.2s;
-                  "
-                  onmouseover="this.style.background='#f5576c33'; this.style.borderColor='#f5576c'"
-                  onmouseout="this.style.background='#f5576c22'; this.style.borderColor='#f5576c44'"
-                >
-                  Flatten Message
-                </button>
-              ` : ''}
-            </div>
-            <div style="display: flex; flex-direction: column; gap: 10px;">
-              ${msg.threads.map((thread, threadIdx) => `
-                <div style="
-                  display: flex;
-                  justify-content: space-between;
-                  align-items: center;
-                  padding: 14px;
-                  background: #252525;
-                  border: 1px solid #333;
-                  border-radius: 8px;
-                  transition: all 0.2s;
-                " onmouseover="this.style.borderColor='#444'" onmouseout="this.style.borderColor='#333'">
-                  <div style="flex: 1; margin-right: 16px; min-width: 0;">
-                    <div style="font-size: 11px; color: #666; margin-bottom: 6px;">
-                      Created: ${new Date(thread.createdAt).toLocaleString()} • ${thread.messages?.length || 0} message(s)
-                    </div>
-                    <div style="
-                      font-size: 13px;
-                      color: #aaa;
-                      line-height: 1.4;
-                      overflow: hidden;
-                      text-overflow: ellipsis;
-                      display: -webkit-box;
-                      -webkit-line-clamp: 2;
-                      -webkit-box-orient: vertical;
-                    ">${escapeHtml(getThreadPreview(thread))}</div>
-                  </div>
-                  <button
-                    class="delete-thread-btn"
-                    data-message-index="${msg.index}"
-                    data-thread-index="${threadIdx}"
-                    style="
-                      padding: 8px 16px;
-                      background: #ef444422;
-                      color: #ef4444;
-                      border: 1px solid #ef444444;
-                      border-radius: 6px;
-                      font-size: 12px;
-                      font-weight: 600;
-                      cursor: pointer;
-                      white-space: nowrap;
-                      transition: all 0.2s;
-                    "
-                    onmouseover="this.style.background='#ef4444'; this.style.color='white'; this.style.borderColor='#ef4444'"
-                    onmouseout="this.style.background='#ef444422'; this.style.color='#ef4444'; this.style.borderColor='#ef444444'"
-                  >
-                    🗑️ Delete
-                  </button>
-                </div>
-              `).join('')}
-            </div>
-          </div>
-        ` : ''}
-      </div>
-    `;
+    const closeButton = document.createElement('button');
+    closeButton.id = 'close-thread-modal';
+    closeButton.type = 'button';
+    closeButton.className = 'ctm-close-btn';
+    closeButton.setAttribute('aria-label', 'Close thread manager');
+    closeButton.textContent = '×';
+
+    header.appendChild(title);
+    header.appendChild(closeButton);
+    return header;
   }
 
-  function escapeHtml(text) {
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
+  function createOverviewSection(analysis) {
+    const wrapper = document.createElement('div');
+    wrapper.className = 'ctm-overview';
+
+    const heading = document.createElement('h3');
+    heading.textContent = 'Chat Overview';
+    wrapper.appendChild(heading);
+
+    const grid = document.createElement('div');
+    grid.className = 'ctm-overview-grid';
+
+    const stats = [
+      { label: 'Active Messages', value: analysis.totalMessages, accent: 'primary' },
+      { label: 'Total Threads', value: analysis.totalThreads, accent: 'secondary' },
+      { label: 'With Variants', value: analysis.activeMessages.filter(m => m.hasThreads).length, accent: 'success' }
+    ];
+
+    stats.forEach(stat => {
+      const card = document.createElement('div');
+      card.className = `ctm-overview-card ctm-overview-card--${stat.accent}`;
+
+      const label = document.createElement('span');
+      label.className = 'ctm-overview-label';
+      label.textContent = stat.label.toUpperCase();
+
+      const value = document.createElement('span');
+      value.className = 'ctm-overview-value';
+      value.textContent = stat.value;
+
+      card.appendChild(label);
+      card.appendChild(value);
+      grid.appendChild(card);
+    });
+
+    wrapper.appendChild(grid);
+    return wrapper;
+  }
+
+  function createActionRow(analysis) {
+    const row = document.createElement('div');
+    row.className = 'ctm-action-row';
+
+    const exportButton = document.createElement('button');
+    exportButton.id = 'export-chat-button';
+    exportButton.type = 'button';
+    exportButton.className = 'ctm-btn ctm-btn--primary';
+    exportButton.innerHTML = '<span aria-hidden="true">⬇️</span><span>Export Chat</span>';
+
+    const flattenButton = document.createElement('button');
+    flattenButton.id = 'flatten-chat-button';
+    flattenButton.type = 'button';
+    flattenButton.className = 'ctm-btn ctm-btn--danger-outline';
+    flattenButton.innerHTML = '<span aria-hidden="true">🧹</span><span>Flatten Entire Chat</span>';
+    flattenButton.disabled = analysis.totalThreads === 0;
+    if (flattenButton.disabled) {
+      flattenButton.setAttribute('aria-disabled', 'true');
+    }
+
+    row.appendChild(exportButton);
+    row.appendChild(flattenButton);
+
+    return row;
+  }
+
+  function createHelperText() {
+    const text = document.createElement('p');
+    text.className = 'ctm-helper-text';
+    text.textContent = 'Click any message to expand and view its thread variants.';
+    return text;
+  }
+
+  function createMessagesSection(analysis) {
+    if (analysis.totalMessages === 0) {
+      return createEmptyState();
+    }
+
+    const list = document.createElement('div');
+    list.id = 'messages-list';
+    list.className = 'ctm-messages-list';
+
+    analysis.activeMessages.forEach(msg => {
+      list.appendChild(createMessageCard(msg));
+    });
+
+    return list;
+  }
+
+  function createEmptyState() {
+    const emptyState = document.createElement('div');
+    emptyState.className = 'ctm-empty-state';
+
+    const icon = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    icon.setAttribute('width', '64');
+    icon.setAttribute('height', '64');
+    icon.setAttribute('viewBox', '0 0 24 24');
+    icon.setAttribute('aria-hidden', 'true');
+
+    const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+    circle.setAttribute('cx', '12');
+    circle.setAttribute('cy', '12');
+    circle.setAttribute('r', '10');
+    circle.setAttribute('stroke', 'currentColor');
+    circle.setAttribute('stroke-width', '2');
+    circle.setAttribute('fill', 'none');
+
+    const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    line.setAttribute('x1', '12');
+    line.setAttribute('y1', '8');
+    line.setAttribute('x2', '12');
+    line.setAttribute('y2', '12');
+    line.setAttribute('stroke', 'currentColor');
+    line.setAttribute('stroke-width', '2');
+    line.setAttribute('stroke-linecap', 'round');
+
+    const dot = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+    dot.setAttribute('cx', '12');
+    dot.setAttribute('cy', '16');
+    dot.setAttribute('r', '1');
+    dot.setAttribute('fill', 'currentColor');
+
+    icon.appendChild(circle);
+    icon.appendChild(line);
+    icon.appendChild(dot);
+
+    const text = document.createElement('p');
+    text.textContent = 'No messages found in this chat yet.';
+
+    emptyState.appendChild(icon);
+    emptyState.appendChild(text);
+
+    return emptyState;
+  }
+
+  function createMessageCard(msg) {
+    const card = document.createElement('div');
+    card.className = 'ctm-message-card';
+    if (msg.hasThreads) {
+      card.classList.add('has-threads');
+    }
+
+    const isExpanded = msg.hasThreads && state.expandedMessages.has(msg.index);
+    if (isExpanded) {
+      card.classList.add('is-expanded');
+    }
+
+    const header = document.createElement('button');
+    header.type = 'button';
+    header.className = 'ctm-message-header';
+    header.dataset.messageIndex = msg.index;
+    header.dataset.hasThreads = msg.hasThreads ? 'true' : 'false';
+    header.disabled = !msg.hasThreads;
+    header.setAttribute('aria-expanded', isExpanded ? 'true' : 'false');
+    header.setAttribute('aria-controls', `ctm-message-threads-${msg.index}`);
+
+    const headerContent = document.createElement('div');
+    headerContent.className = 'ctm-message-header-content';
+
+    const metaRow = document.createElement('div');
+    metaRow.className = 'ctm-message-meta';
+
+    const roleBadge = document.createElement('span');
+    roleBadge.className = `ctm-role-badge ctm-role-badge--${msg.role || 'default'}`;
+    roleBadge.textContent = msg.role || 'unknown';
+    metaRow.appendChild(roleBadge);
+
+    const messageNumber = document.createElement('span');
+    messageNumber.className = 'ctm-message-number';
+    messageNumber.textContent = `Message ${msg.index + 1}`;
+    metaRow.appendChild(messageNumber);
+
+    if (msg.hasThreads) {
+      const threadBadge = document.createElement('span');
+      threadBadge.className = 'ctm-thread-count';
+      threadBadge.textContent = `${msg.threadCount} variant${msg.threadCount !== 1 ? 's' : ''}`;
+      metaRow.appendChild(threadBadge);
+    }
+
+    headerContent.appendChild(metaRow);
+
+    const preview = document.createElement('p');
+    preview.className = 'ctm-message-preview';
+    const previewText = typeof msg.content === 'string' ? msg.content : '[No preview available]';
+    const needsEllipsis = typeof msg.fullContent === 'string' && msg.fullContent.length > previewText.length;
+    preview.textContent = previewText + (needsEllipsis ? '…' : '');
+    headerContent.appendChild(preview);
+
+    if (msg.timestamp) {
+      const timestamp = document.createElement('span');
+      timestamp.className = 'ctm-message-timestamp';
+      timestamp.textContent = new Date(msg.timestamp).toLocaleString();
+      headerContent.appendChild(timestamp);
+    }
+
+    const arrow = document.createElement('span');
+    arrow.className = 'ctm-expand-arrow';
+    arrow.setAttribute('aria-hidden', 'true');
+    const arrowSvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    arrowSvg.setAttribute('width', '16');
+    arrowSvg.setAttribute('height', '16');
+    arrowSvg.setAttribute('viewBox', '0 0 24 24');
+    arrowSvg.setAttribute('fill', 'none');
+    arrowSvg.setAttribute('stroke', 'currentColor');
+    arrowSvg.setAttribute('stroke-width', '2');
+
+    const arrowPolyline = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
+    arrowPolyline.setAttribute('points', '18 15 12 9 6 15');
+    arrowSvg.appendChild(arrowPolyline);
+    arrow.appendChild(arrowSvg);
+    if (!msg.hasThreads) {
+      arrow.style.visibility = 'hidden';
+    }
+
+    header.appendChild(headerContent);
+    header.appendChild(arrow);
+    card.appendChild(header);
+
+    if (msg.hasThreads) {
+      const threadsSection = document.createElement('div');
+      threadsSection.className = 'ctm-message-threads';
+      threadsSection.id = `ctm-message-threads-${msg.index}`;
+      if (isExpanded) {
+        threadsSection.classList.add('is-open');
+      }
+
+      const inner = document.createElement('div');
+      inner.className = 'ctm-message-threads-inner';
+
+      const actions = document.createElement('div');
+      actions.className = 'ctm-card-actions';
+
+      const summary = document.createElement('span');
+      summary.className = 'ctm-thread-summary';
+      const totalMessages = msg.threads.reduce((acc, thread) => acc + (thread.messages?.length || 0), 0);
+      summary.textContent = `${msg.threadCount} variant${msg.threadCount !== 1 ? 's' : ''} • ${totalMessages} total message${totalMessages !== 1 ? 's' : ''}`;
+
+      const flattenButton = document.createElement('button');
+      flattenButton.type = 'button';
+      flattenButton.className = 'ctm-btn ctm-btn--ghost flatten-message-btn';
+      flattenButton.dataset.messageIndex = msg.index;
+      flattenButton.textContent = 'Flatten Message';
+
+      actions.appendChild(summary);
+      actions.appendChild(flattenButton);
+
+      const threadList = document.createElement('div');
+      threadList.className = 'ctm-thread-list';
+
+      msg.threads.forEach((thread, threadIdx) => {
+        threadList.appendChild(createThreadCard(msg.index, thread, threadIdx));
+      });
+
+      inner.appendChild(actions);
+      inner.appendChild(threadList);
+      threadsSection.appendChild(inner);
+      card.appendChild(threadsSection);
+    }
+
+    return card;
+  }
+
+  function createThreadCard(messageIndex, thread, threadIdx) {
+    const threadCard = document.createElement('div');
+    threadCard.className = 'ctm-thread-card';
+
+    const details = document.createElement('div');
+    details.className = 'ctm-thread-details';
+
+    const meta = document.createElement('div');
+    meta.className = 'ctm-thread-meta';
+    const createdAt = thread.createdAt ? new Date(thread.createdAt).toLocaleString() : 'Unknown date';
+    meta.textContent = `Created: ${createdAt} • ${thread.messages?.length || 0} message(s)`;
+
+    const preview = document.createElement('p');
+    preview.className = 'ctm-thread-preview';
+    preview.textContent = getThreadPreview(thread);
+
+    details.appendChild(meta);
+    details.appendChild(preview);
+
+    const deleteButton = document.createElement('button');
+    deleteButton.type = 'button';
+    deleteButton.className = 'ctm-btn ctm-btn--danger delete-thread-btn';
+    deleteButton.dataset.messageIndex = messageIndex;
+    deleteButton.dataset.threadIndex = threadIdx;
+    deleteButton.textContent = 'Delete';
+
+    threadCard.appendChild(details);
+    threadCard.appendChild(deleteButton);
+
+    return threadCard;
   }
 
   function setupModalEventListeners(modal) {
@@ -775,7 +818,7 @@
 
     // Flatten chat button
     const flattenButton = modal.querySelector('#flatten-chat-button');
-    if (flattenButton) {
+    if (flattenButton && !flattenButton.disabled) {
       flattenButton.addEventListener('click', async () => {
         const success = await flattenChat(state.currentChatID);
         if (success) {
@@ -790,52 +833,17 @@
     }
 
     // Message expand/collapse
-    modal.querySelectorAll('.message-header').forEach(header => {
-      const messageIndex = parseInt(header.dataset.messageIndex);
-      const analysis = analyzeChat(state.currentChat);
-      const msg = analysis.activeMessages.find(m => m.index === messageIndex);
-
-      if (msg && msg.hasThreads) {
-        header.addEventListener('click', () => {
-          // Toggle state
-          const isExpanding = !state.expandedMessages.has(messageIndex);
-          if (isExpanding) {
-            state.expandedMessages.add(messageIndex);
-          } else {
-            state.expandedMessages.delete(messageIndex);
-          }
-
-          // Find the thread content and arrow
-          const messageCard = header.parentElement;
-          const threadContent = messageCard.querySelector('.message-threads');
-          const arrow = header.querySelector('.expand-arrow') || header.querySelector('div:last-child');
-
-          // Smoothly toggle expansion
-          if (threadContent) {
-            if (isExpanding) {
-              threadContent.style.maxHeight = '2000px';
-              threadContent.style.opacity = '1';
-              threadContent.style.borderTop = '1px solid #333';
-            } else {
-              threadContent.style.maxHeight = '0';
-              threadContent.style.opacity = '0';
-              threadContent.style.borderTop = 'none';
-            }
-          }
-
-          // Rotate arrow
-          if (arrow) {
-            arrow.style.transform = isExpanding ? 'rotate(180deg)' : 'rotate(0deg)';
-          }
-        });
-      }
+    modal.querySelectorAll('.ctm-message-header[data-has-threads="true"]').forEach(header => {
+      const messageIndex = parseInt(header.dataset.messageIndex, 10);
+      header.addEventListener('click', () => toggleMessageExpansion(header, messageIndex));
     });
 
     // Flatten message buttons
     modal.querySelectorAll('.flatten-message-btn').forEach(btn => {
       btn.addEventListener('click', async (e) => {
         e.stopPropagation(); // Prevent message expansion
-        const messageIndex = parseInt(e.target.dataset.messageIndex);
+        const button = e.currentTarget;
+        const messageIndex = parseInt(button.dataset.messageIndex, 10);
 
         const success = await flattenMessage(state.currentChatID, messageIndex);
         if (success) {
@@ -849,8 +857,9 @@
     modal.querySelectorAll('.delete-thread-btn').forEach(btn => {
       btn.addEventListener('click', async (e) => {
         e.stopPropagation(); // Prevent message expansion
-        const messageIndex = parseInt(e.target.dataset.messageIndex);
-        const threadIndex = parseInt(e.target.dataset.threadIndex);
+        const button = e.currentTarget;
+        const messageIndex = parseInt(button.dataset.messageIndex, 10);
+        const threadIndex = parseInt(button.dataset.threadIndex, 10);
 
         const confirmed = confirm(
           'Delete this thread variant?\n\n' +
@@ -870,12 +879,33 @@
     });
   }
 
+  function toggleMessageExpansion(header, messageIndex) {
+    const card = header.closest('.ctm-message-card');
+    const threadContent = card?.querySelector('.ctm-message-threads');
+    const isExpanding = !state.expandedMessages.has(messageIndex);
+
+    if (isExpanding) {
+      state.expandedMessages.add(messageIndex);
+    } else {
+      state.expandedMessages.delete(messageIndex);
+    }
+
+    header.setAttribute('aria-expanded', isExpanding ? 'true' : 'false');
+    if (threadContent) {
+      threadContent.classList.toggle('is-open', isExpanding);
+    }
+    if (card) {
+      card.classList.toggle('is-expanded', isExpanding);
+    }
+  }
+
   function closeModal() {
     const modal = document.getElementById('chat-thread-manager-modal');
     if (modal) {
       modal.remove();
     }
     state.uiElements.modal = null;
+    state.analysis = null;
     // Don't clear expandedMessages - let it persist across modal refreshes
     // It will be cleared when navigating to a different chat (see observeChatChanges)
   }
@@ -922,17 +952,15 @@
   }
 
   function observeChatChanges() {
-    // Watch for URL hash changes (chat navigation)
-    let lastHash = window.location.hash;
+    const handleHashChange = () => {
+      state.currentChatID = null;
+      state.currentChat = null;
+      state.analysis = null;
+      state.expandedMessages.clear();
+    };
 
-    setInterval(() => {
-      if (window.location.hash !== lastHash) {
-        lastHash = window.location.hash;
-        state.currentChatID = null;
-        state.currentChat = null;
-        state.expandedMessages.clear();
-      }
-    }, 500);
+    window.addEventListener('hashchange', handleHashChange);
+    handleHashChange();
   }
 
   // ============================================
@@ -977,6 +1005,403 @@
   // Add CSS animations
   const style = document.createElement('style');
   style.textContent = `
+    .ctm-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.85);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 10000;
+      backdrop-filter: blur(8px);
+      padding: 16px;
+    }
+
+    .ctm-modal {
+      background: #1a1a1a;
+      color: #e5e5e5;
+      padding: 32px;
+      border-radius: 18px;
+      max-width: 920px;
+      width: min(920px, 100%);
+      max-height: 85vh;
+      overflow-y: auto;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+      border: 1px solid #2f2f2f;
+    }
+
+    .ctm-modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 24px;
+      gap: 16px;
+    }
+
+    .ctm-modal-header h2 {
+      margin: 0;
+      font-size: 28px;
+      font-weight: 700;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .ctm-close-btn {
+      background: transparent;
+      border: none;
+      color: #999;
+      font-size: 32px;
+      cursor: pointer;
+      line-height: 1;
+      transition: color 0.2s ease;
+    }
+
+    .ctm-close-btn:hover,
+    .ctm-close-btn:focus-visible {
+      color: #fff;
+    }
+
+    .ctm-overview {
+      margin-bottom: 24px;
+      padding: 20px;
+      background: linear-gradient(135deg, #667eea22 0%, #764ba222 100%);
+      border: 1px solid #333;
+      border-radius: 14px;
+    }
+
+    .ctm-overview h3 {
+      margin: 0 0 16px 0;
+      font-size: 16px;
+      font-weight: 600;
+    }
+
+    .ctm-overview-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 16px;
+    }
+
+    .ctm-overview-card {
+      background: #252525;
+      padding: 12px;
+      border-radius: 10px;
+      border: 1px solid #333;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .ctm-overview-label {
+      font-size: 11px;
+      color: #999;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .ctm-overview-value {
+      font-size: 24px;
+      font-weight: 700;
+    }
+
+    .ctm-overview-card--primary .ctm-overview-value { color: #667eea; }
+    .ctm-overview-card--secondary .ctm-overview-value { color: #764ba2; }
+    .ctm-overview-card--success .ctm-overview-value { color: #48bb78; }
+
+    .ctm-action-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-bottom: 8px;
+    }
+
+    .ctm-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 12px 20px;
+      border-radius: 10px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease, color 0.2s ease;
+      border: none;
+      background: #2d2d2d;
+      color: #f3f4f6;
+    }
+
+    .ctm-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      box-shadow: none;
+      transform: none;
+    }
+
+    .ctm-btn--primary {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      box-shadow: 0 10px 20px rgba(102, 126, 234, 0.25);
+    }
+
+    .ctm-btn--primary:hover:not(:disabled) {
+      transform: translateY(-1px);
+      box-shadow: 0 15px 30px rgba(102, 126, 234, 0.35);
+    }
+
+    .ctm-btn--danger-outline {
+      background: rgba(239, 68, 68, 0.15);
+      color: #fca5a5;
+      border: 1px solid rgba(239, 68, 68, 0.4);
+    }
+
+    .ctm-btn--danger-outline:hover:not(:disabled) {
+      background: rgba(239, 68, 68, 0.25);
+      border-color: #ef4444;
+      color: #fff;
+    }
+
+    .ctm-btn--danger {
+      background: rgba(239, 68, 68, 0.15);
+      color: #ef4444;
+      border: 1px solid rgba(239, 68, 68, 0.4);
+    }
+
+    .ctm-btn--danger:hover {
+      background: #ef4444;
+      color: #fff;
+      border-color: #ef4444;
+    }
+
+    .ctm-btn--ghost {
+      background: rgba(255, 255, 255, 0.05);
+      color: #f3f4f6;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .ctm-btn--ghost:hover {
+      background: rgba(255, 255, 255, 0.08);
+    }
+
+    .ctm-helper-text {
+      margin: 0 0 20px 0;
+      font-size: 13px;
+      color: #9ca3af;
+    }
+
+    .ctm-messages-list {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .ctm-message-card {
+      border: 1px solid #2a2a2a;
+      border-radius: 12px;
+      background: #1f1f1f;
+      overflow: hidden;
+      transition: border-color 0.2s ease, background 0.2s ease;
+    }
+
+    .ctm-message-card.has-threads {
+      border-color: #363636;
+      background: #212121;
+    }
+
+    .ctm-message-card.is-expanded {
+      border-color: #4b4b4b;
+      background: #242424;
+    }
+
+    .ctm-message-header {
+      width: 100%;
+      background: transparent;
+      border: none;
+      color: inherit;
+      padding: 16px 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+      cursor: pointer;
+      text-align: left;
+    }
+
+    .ctm-message-header:disabled {
+      cursor: default;
+      opacity: 0.6;
+    }
+
+    .ctm-message-header-content {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .ctm-message-meta {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 8px;
+      flex-wrap: wrap;
+    }
+
+    .ctm-role-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 4px 12px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .ctm-role-badge--user { background: rgba(59, 130, 246, 0.15); color: #60a5fa; }
+    .ctm-role-badge--assistant { background: rgba(139, 92, 246, 0.15); color: #c4b5fd; }
+    .ctm-role-badge--system { background: rgba(16, 185, 129, 0.15); color: #6ee7b7; }
+    .ctm-role-badge--default { background: rgba(156, 163, 175, 0.2); color: #e5e7eb; }
+
+    .ctm-message-number {
+      font-size: 12px;
+      color: #9ca3af;
+    }
+
+    .ctm-thread-count {
+      font-size: 11px;
+      padding: 4px 10px;
+      border-radius: 999px;
+      background: rgba(118, 75, 162, 0.2);
+      color: #d8b4fe;
+      font-weight: 600;
+    }
+
+    .ctm-message-preview {
+      margin: 0;
+      font-size: 14px;
+      color: #d4d4d8;
+      line-height: 1.5;
+      display: -webkit-box;
+      -webkit-line-clamp: 3;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+
+    .ctm-message-timestamp {
+      display: block;
+      font-size: 12px;
+      color: #6b7280;
+      margin-top: 8px;
+    }
+
+    .ctm-expand-arrow svg {
+      transition: transform 0.3s ease;
+    }
+
+    .ctm-message-card.is-expanded .ctm-expand-arrow svg {
+      transform: rotate(180deg);
+    }
+
+    .ctm-message-threads {
+      max-height: 0;
+      overflow: hidden;
+      opacity: 0;
+      border-top: 1px solid transparent;
+      transition: max-height 0.3s ease, opacity 0.3s ease, border-top 0.3s ease;
+    }
+
+    .ctm-message-threads.is-open {
+      max-height: 2000px;
+      opacity: 1;
+      border-top-color: #333;
+    }
+
+    .ctm-message-threads-inner {
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      background: #1a1a1a;
+    }
+
+    .ctm-card-actions {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    .ctm-thread-summary {
+      font-size: 13px;
+      color: #9ca3af;
+    }
+
+    .ctm-thread-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .ctm-thread-card {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+      padding: 14px;
+      background: #252525;
+      border: 1px solid #333;
+      border-radius: 10px;
+      transition: border-color 0.2s ease;
+      flex-wrap: wrap;
+    }
+
+    .ctm-thread-card:hover {
+      border-color: #444;
+    }
+
+    .ctm-thread-details {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .ctm-thread-meta {
+      font-size: 11px;
+      color: #888;
+      margin-bottom: 6px;
+    }
+
+    .ctm-thread-preview {
+      margin: 0;
+      font-size: 13px;
+      color: #bdbdbd;
+      line-height: 1.4;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+
+    .ctm-empty-state {
+      padding: 60px 20px;
+      text-align: center;
+      color: #8b8b8b;
+    }
+
+    .ctm-empty-state svg {
+      margin-bottom: 20px;
+      opacity: 0.35;
+    }
+
+    @media (max-width: 600px) {
+      .ctm-modal {
+        padding: 20px;
+      }
+
+      .ctm-action-row {
+        flex-direction: column;
+      }
+    }
+
     @keyframes slideIn {
       from {
         transform: translateX(450px) scale(0.8);
