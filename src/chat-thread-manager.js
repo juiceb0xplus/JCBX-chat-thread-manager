@@ -779,21 +779,14 @@
 
       const summaryDescription = document.createElement('p');
       summaryDescription.className = 'ctm-thread-summary-description';
-      summaryDescription.textContent = 'Each card below is a saved variant of what you typed along with its branch of follow-up replies.';
+      summaryDescription.textContent = 'The replies below are alternate branches, not sequential messages.';
 
       const variantPills = document.createElement('div');
       variantPills.className = 'ctm-thread-variant-pills';
-      msg.threads.forEach((thread, idx) => {
+      msg.threads.forEach((_, idx) => {
         const pill = document.createElement('span');
         pill.className = 'ctm-thread-variant-pill';
-        const variantPreview = getThreadPreview(thread);
-        const hasPreview = typeof variantPreview === 'string' && variantPreview.length > 0;
-        pill.textContent = hasPreview
-          ? `${idx + 1}. ${truncateText(variantPreview, 60)}`
-          : `Variant ${idx + 1}`;
-        if (hasPreview) {
-          pill.title = variantPreview;
-        }
+        pill.textContent = `Thread ${idx + 1} of ${msg.threadCount}`;
         variantPills.appendChild(pill);
       });
 
