@@ -1,19 +1,14 @@
 /**
- * TypingMind Chat Thread Manager Extension
+ * Chat Thread Manager (Unofficial TypingMind helper)
  * Version: 2.1.0
  *
- * Features:
- * - View all active messages in current chat
- * - Expand messages to see their thread variants
- * - Delete individual threads
- * - Flatten individual messages or entire chat
- * - Export chat in TypingMind-compatible format (importable)
+ * Quick reference:
+ * - Lists active messages and their stored variants
+ * - Lets you delete branches or flatten entire sections
+ * - Exports chats in TypingMind's native JSON format
  *
- * Installation:
- * 1. Host this file on a public URL (GitHub Pages, etc.)
- * 2. In TypingMind: Menu > Preferences > Extensions
- * 3. Add the URL to your extension
- * 4. Reload the page
+ * Install: host this file somewhere HTTPS accessible, add the URL under
+ * TypingMind → Menu → Preferences → Extensions, then reload.
  */
 
 (function() {

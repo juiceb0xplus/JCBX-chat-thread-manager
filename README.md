@@ -1,83 +1,52 @@
-# TypingMind Chat Thread Manager
+# Chat Thread Manager
 
-A browser extension for TypingMind that lets you manage chat threads created through message edits and regenerations.
+A small browser-side helper that lets you browse, prune, and export every branch hidden inside TypingMind chats. It plugs into TypingMind's extension slot but is its own project and not an official TypingMind feature.
 
-## What it does
+## Highlights
 
-- View all messages in your chat with their thread variants
-- Delete specific thread branches you don't need
-- Flatten messages or entire chats to clean up
-- Export chats in TypingMind-compatible format (importable!)
-- Dark-themed UI that matches TypingMind
+- Lists every message plus its alternate branches in one scrollable panel
+- Delete individual variants or flatten a whole message/chat when things get messy
+- Export the active chat as a TypingMind-compatible JSON file
+- Dark UI, keyboard shortcut (`Ctrl/Cmd+Shift+T`), and zero network calls
 
-## Quick Start
+## Setup
 
-1. **Host the extension**: Fork this repo and enable GitHub Pages, or upload `src/chat-thread-manager.js` to your own server
-2. **Add to TypingMind**: Go to Menu → Preferences → Extensions → Add your URL
-3. **Use it**: Click the "Threads" button or press `Ctrl+Shift+T`
+You just need to host `src/chat-thread-manager.js` somewhere that TypingMind can load.
 
-## Installation
+### Option 1: GitHub Pages
+1. Fork this repo.
+2. Settings → Pages → serve the `main` branch.
+3. Your script URL will be `https://<username>.github.io/JCBX-chat-thread-manager/src/chat-thread-manager.js`.
+4. In TypingMind: Menu → Preferences → Extensions → paste the URL → Save → reload.
 
-### GitHub Pages (easiest)
+### Option 2: Any static host
+Upload `src/chat-thread-manager.js` to your server, note the HTTPS URL, and drop it into the TypingMind Extensions panel.
 
-1. Fork this repository
-2. Enable GitHub Pages in Settings → Pages (source: main branch)
-3. Your extension URL will be: `https://[your-username].github.io/JCBX-chat-thread-manager/src/chat-thread-manager.js`
-4. In TypingMind: Menu → Preferences → Extensions → paste the URL → Save
-5. Reload and you're done
+### Option 3: jsDelivr (auto updates)
+```
+https://cdn.jsdelivr.net/gh/<username>/JCBX-chat-thread-manager@main/src/chat-thread-manager.js
+```
+Pin to a tag/commit if you don't want automatic updates.
 
-### Your own server
+## Using the manager
+1. Open a chat in TypingMind.
+2. Click the new **Threads** button in the top bar (or hit `Ctrl/Cmd+Shift+T`).
+3. Expand a message to see every stored variant.
+4. Use the per-thread delete button, the message-level "Flatten" button, or "Flatten entire chat" if you want to start fresh.
+5. Export before doing destructive edits—it's a raw JSON dump that TypingMind can re-import.
 
-Just upload `src/chat-thread-manager.js` to any web server and use that URL instead.
+Everything runs locally. The script only touches the same IndexedDB TypingMind already uses.
 
-## Features
+## Tips & notes
+- The extension waits for TypingMind's UI to load; if you don't see the button, reload once.
+- Keyboard shortcut can be triggered via console with `window.ChatThreadManager.showModal()`.
+- Deleting or flattening cannot be undone. Export often.
+- Works best on desktop browsers. Mobile layouts are usable but cramped.
 
-**View threads**: See all your messages and expand any with thread variants
-
-**Delete threads**: Remove specific thread branches you experimented with
-
-**Flatten**: Clean up individual messages or the entire chat
-
-**Export**: Download chat in TypingMind's native format - import it back anytime!
-
-**Keyboard shortcut**: `Ctrl+Shift+T` to open
-
-## Usage
-
-Open the thread manager by clicking "Threads" in the menu bar or pressing `Ctrl+Shift+T`.
-
-The interface shows:
-- All active messages in your current chat
-- Which messages have thread variants (highlighted)
-- Stats about total messages and threads
-- Export and flatten buttons
-
-Click any message to expand and see its thread variants. Each variant can be deleted individually, or flatten the whole message to remove all variants at once.
-
-**Important**: Always export your chat before making destructive changes. There's no undo.
-
-## Safety
-
-- Everything runs in your browser only
-- No data is sent to any server
-- Exports are standard JSON files you control
-- Only install from URLs you trust
-
-## Warnings
-
-- Deleting threads is permanent
-- Always backup important chats first
-- TypingMind's data structure can change without notice
-- This extension has no official support from TypingMind
-
-## Contributing
-
-Found a bug? Have a feature idea? Open an issue or submit a PR.
+## Development
+- `src/chat-thread-manager.js` is the extension entry point.
+- `scripts/inspect-data.js` is a console helper for peeking at TypingMind's data model.
+- No build step: edit, host, refresh.
 
 ## License
-
-MIT - see LICENSE file
-
----
-
-Made for the TypingMind community
+MIT. See [LICENSE](LICENSE).
