@@ -11,7 +11,7 @@
  * TypingMind → Menu → Preferences → Extensions, then reload.
  */
 
-(function() {
+(function () {
   'use strict';
 
   // ============================================
@@ -132,6 +132,12 @@
 
     button.appendChild(icon);
     button.appendChild(label);
+
+    // Ensure button has flex layout for centering
+    button.style.display = 'flex';
+    button.style.alignItems = 'center';
+    button.style.justifyContent = 'center';
+    button.style.gap = '8px'; // Space between icon and label
 
     return button;
   }
@@ -1154,47 +1160,77 @@
     }, duration);
   }
 
-  // Add CSS animations
+  // Add CSS animations and Modern UI Styles
   const style = document.createElement('style');
   style.textContent = `
+    /* =========================================
+       Glassmorphism & Modern Variables
+       ========================================= */
+    :root {
+      --ctm-bg-overlay: rgba(0, 0, 0, 0.6);
+      --ctm-bg-modal: rgba(20, 20, 23, 0.95);
+      --ctm-border-color: rgba(255, 255, 255, 0.08);
+      --ctm-primary-gradient: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+      --ctm-text-primary: #ffffff;
+      --ctm-text-secondary: #a1a1aa;
+      --ctm-text-tertiary: #71717a;
+      --ctm-radius-lg: 16px;
+      --ctm-radius-md: 12px;
+      --ctm-radius-sm: 8px;
+      --ctm-shadow-lg: 0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 10px 10px -5px rgba(0, 0, 0, 0.4);
+      --ctm-font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    }
+
+    /* =========================================
+       Modal Overlay & Container
+       ========================================= */
     .ctm-overlay {
       position: fixed;
       inset: 0;
-      background: rgba(0, 0, 0, 0.85);
+      background: var(--ctm-bg-overlay);
+      backdrop-filter: blur(8px);
       display: flex;
       align-items: center;
       justify-content: center;
       z-index: 10000;
-      backdrop-filter: blur(8px);
-      padding: 16px;
+      padding: 20px;
+      animation: ctmFadeIn 0.2s ease-out;
     }
 
     .ctm-modal {
-      background: #1a1a1a;
-      color: #e5e5e5;
-      padding: 32px;
-      border-radius: 18px;
-      max-width: 920px;
-      width: min(920px, 100%);
+      background: var(--ctm-bg-modal);
+      color: var(--ctm-text-primary);
+      font-family: var(--ctm-font-family);
+      width: 100%;
+      max-width: 900px;
       max-height: 85vh;
-      overflow-y: auto;
-      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
-      border: 1px solid #2f2f2f;
+      border-radius: var(--ctm-radius-lg);
+      border: 1px solid var(--ctm-border-color);
+      box-shadow: var(--ctm-shadow-lg);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      animation: ctmScaleIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);
     }
 
+    /* =========================================
+       Header
+       ========================================= */
     .ctm-modal-header {
+      padding: 24px 32px;
+      border-bottom: 1px solid var(--ctm-border-color);
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 24px;
-      gap: 16px;
+      background: rgba(255, 255, 255, 0.02);
     }
 
     .ctm-modal-header h2 {
       margin: 0;
-      font-size: 28px;
+      font-size: 24px;
       font-weight: 700;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      letter-spacing: -0.02em;
+      background: var(--ctm-primary-gradient);
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
     }
@@ -1202,69 +1238,125 @@
     .ctm-close-btn {
       background: transparent;
       border: none;
-      color: #999;
-      font-size: 32px;
+      color: var(--ctm-text-secondary);
+      font-size: 28px;
       cursor: pointer;
       line-height: 1;
-      transition: color 0.2s ease;
+      padding: 4px;
+      border-radius: var(--ctm-radius-sm);
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 32px;
+      height: 32px;
     }
 
-    .ctm-close-btn:hover,
-    .ctm-close-btn:focus-visible {
-      color: #fff;
+    .ctm-close-btn:hover {
+      background: rgba(255, 255, 255, 0.1);
+      color: var(--ctm-text-primary);
     }
 
+    /* =========================================
+       Scrollable Content Area
+       ========================================= */
+    .ctm-modal {
+      overflow-y: auto;
+    }
+    
+    /* Custom Scrollbar */
+    .ctm-modal::-webkit-scrollbar {
+      width: 8px;
+    }
+    .ctm-modal::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    .ctm-modal::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 4px;
+    }
+    .ctm-modal::-webkit-scrollbar-thumb:hover {
+      background: rgba(255, 255, 255, 0.2);
+    }
+
+    /* =========================================
+       Overview Section
+       ========================================= */
     .ctm-overview {
-      margin-bottom: 24px;
-      padding: 20px;
-      background: linear-gradient(135deg, #667eea22 0%, #764ba222 100%);
-      border: 1px solid #333;
-      border-radius: 14px;
+      margin-bottom: 32px;
     }
 
     .ctm-overview h3 {
       margin: 0 0 16px 0;
-      font-size: 16px;
+      font-size: 14px;
       font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--ctm-text-tertiary);
     }
 
     .ctm-overview-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
       gap: 16px;
     }
 
     .ctm-overview-card {
-      background: #252525;
-      padding: 12px;
-      border-radius: 10px;
-      border: 1px solid #333;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid var(--ctm-border-color);
+      border-radius: var(--ctm-radius-md);
+      padding: 20px;
       display: flex;
       flex-direction: column;
       gap: 8px;
+      transition: transform 0.2s, border-color 0.2s;
+    }
+
+    .ctm-overview-card:hover {
+      transform: translateY(-2px);
+      border-color: rgba(255, 255, 255, 0.15);
+      background: rgba(255, 255, 255, 0.05);
     }
 
     .ctm-overview-label {
-      font-size: 11px;
-      color: #999;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--ctm-text-secondary);
       text-transform: uppercase;
-      letter-spacing: 0.5px;
+      letter-spacing: 0.05em;
     }
 
     .ctm-overview-value {
-      font-size: 24px;
+      font-size: 32px;
       font-weight: 700;
+      letter-spacing: -0.02em;
+      color: var(--ctm-text-primary);
     }
 
-    .ctm-overview-card--primary .ctm-overview-value { color: #667eea; }
-    .ctm-overview-card--secondary .ctm-overview-value { color: #764ba2; }
-    .ctm-overview-card--success .ctm-overview-value { color: #48bb78; }
+    .ctm-overview-card--primary .ctm-overview-value {
+      background: linear-gradient(135deg, #60a5fa 0%, #3b82f6 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .ctm-overview-card--secondary .ctm-overview-value {
+      background: linear-gradient(135deg, #c084fc 0%, #a855f7 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .ctm-overview-card--success .ctm-overview-value {
+      background: linear-gradient(135deg, #4ade80 0%, #22c55e 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
 
+    /* =========================================
+       Actions & Helper
+       ========================================= */
     .ctm-action-row {
       display: flex;
-      flex-wrap: wrap;
       gap: 12px;
-      margin-bottom: 8px;
+      margin-bottom: 24px;
+      flex-wrap: wrap;
     }
 
     .ctm-btn {
@@ -1272,96 +1364,109 @@
       align-items: center;
       justify-content: center;
       gap: 8px;
-      padding: 12px 20px;
-      border-radius: 10px;
+      padding: 10px 20px;
+      border-radius: var(--ctm-radius-md);
       font-size: 14px;
       font-weight: 600;
       cursor: pointer;
-      transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease, color 0.2s ease;
-      border: none;
-      background: #2d2d2d;
-      color: #f3f4f6;
+      transition: all 0.2s;
+      border: 1px solid transparent;
+      font-family: var(--ctm-font-family);
     }
 
     .ctm-btn:disabled {
       opacity: 0.5;
       cursor: not-allowed;
-      box-shadow: none;
-      transform: none;
+      pointer-events: none;
     }
 
     .ctm-btn--primary {
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      box-shadow: 0 10px 20px rgba(102, 126, 234, 0.25);
+      background: var(--ctm-primary-gradient);
+      color: white;
+      box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
     }
 
-    .ctm-btn--primary:hover:not(:disabled) {
+    .ctm-btn--primary:hover {
+      box-shadow: 0 6px 16px rgba(59, 130, 246, 0.4);
       transform: translateY(-1px);
-      box-shadow: 0 15px 30px rgba(102, 126, 234, 0.35);
     }
 
     .ctm-btn--danger-outline {
-      background: rgba(239, 68, 68, 0.15);
-      color: #fca5a5;
-      border: 1px solid rgba(239, 68, 68, 0.4);
+      background: transparent;
+      border-color: rgba(239, 68, 68, 0.3);
+      color: #f87171;
     }
 
-    .ctm-btn--danger-outline:hover:not(:disabled) {
-      background: rgba(239, 68, 68, 0.25);
+    .ctm-btn--danger-outline:hover {
+      background: rgba(239, 68, 68, 0.1);
       border-color: #ef4444;
-      color: #fff;
-    }
-
-    .ctm-btn--danger {
-      background: rgba(239, 68, 68, 0.15);
       color: #ef4444;
-      border: 1px solid rgba(239, 68, 68, 0.4);
-    }
-
-    .ctm-btn--danger:hover {
-      background: #ef4444;
-      color: #fff;
-      border-color: #ef4444;
     }
 
     .ctm-btn--ghost {
       background: rgba(255, 255, 255, 0.05);
-      color: #f3f4f6;
-      border: 1px solid rgba(255, 255, 255, 0.1);
+      color: var(--ctm-text-primary);
+      border-color: rgba(255, 255, 255, 0.1);
+    }
+    .ctm-btn--ghost:hover {
+      background: rgba(255, 255, 255, 0.1);
     }
 
-    .ctm-btn--ghost:hover {
-      background: rgba(255, 255, 255, 0.08);
+    .ctm-btn--danger {
+      background: rgba(239, 68, 68, 0.1);
+      color: #f87171;
+      border: 1px solid rgba(239, 68, 68, 0.2);
+      padding: 6px 12px;
+      font-size: 12px;
+    }
+    .ctm-btn--danger:hover {
+      background: rgba(239, 68, 68, 0.2);
+      border-color: rgba(239, 68, 68, 0.4);
     }
 
     .ctm-helper-text {
-      margin: 0 0 20px 0;
-      font-size: 13px;
-      color: #9ca3af;
+      margin: 0 0 24px 0;
+      font-size: 14px;
+      color: var(--ctm-text-tertiary);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .ctm-helper-text::before {
+      content: 'ⓘ';
+      font-size: 16px;
     }
 
+    /* =========================================
+       Message List
+       ========================================= */
     .ctm-messages-list {
       display: flex;
       flex-direction: column;
-      gap: 12px;
+      gap: 16px;
     }
 
     .ctm-message-card {
-      border: 1px solid #2a2a2a;
-      border-radius: 12px;
-      background: #1f1f1f;
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid var(--ctm-border-color);
+      border-radius: var(--ctm-radius-md);
       overflow: hidden;
-      transition: border-color 0.2s ease, background 0.2s ease;
+      transition: all 0.2s;
     }
 
     .ctm-message-card.has-threads {
-      border-color: #363636;
-      background: #212121;
+      background: rgba(255, 255, 255, 0.04);
+      border-color: rgba(255, 255, 255, 0.1);
+    }
+
+    .ctm-message-card.has-threads:hover {
+      border-color: rgba(255, 255, 255, 0.2);
     }
 
     .ctm-message-card.is-expanded {
-      border-color: #4b4b4b;
-      background: #242424;
+      background: rgba(255, 255, 255, 0.06);
+      border-color: rgba(255, 255, 255, 0.2);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
     }
 
     .ctm-message-header {
@@ -1369,18 +1474,18 @@
       background: transparent;
       border: none;
       color: inherit;
-      padding: 16px 20px;
+      padding: 20px;
       display: flex;
       justify-content: space-between;
-      align-items: center;
-      gap: 16px;
+      align-items: flex-start;
+      gap: 20px;
       cursor: pointer;
       text-align: left;
+      font-family: var(--ctm-font-family);
     }
 
     .ctm-message-header:disabled {
       cursor: default;
-      opacity: 0.6;
     }
 
     .ctm-message-header-content {
@@ -1392,48 +1497,45 @@
       display: flex;
       align-items: center;
       gap: 12px;
-      margin-bottom: 8px;
+      margin-bottom: 10px;
       flex-wrap: wrap;
     }
 
     .ctm-role-badge {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      padding: 4px 12px;
+      padding: 4px 10px;
       border-radius: 6px;
       font-size: 11px;
-      font-weight: 600;
+      font-weight: 700;
       text-transform: uppercase;
-      letter-spacing: 0.5px;
+      letter-spacing: 0.05em;
     }
-
     .ctm-role-badge--user { background: rgba(59, 130, 246, 0.15); color: #60a5fa; }
     .ctm-role-badge--assistant { background: rgba(139, 92, 246, 0.15); color: #c4b5fd; }
     .ctm-role-badge--system { background: rgba(16, 185, 129, 0.15); color: #6ee7b7; }
-    .ctm-role-badge--default { background: rgba(156, 163, 175, 0.2); color: #e5e7eb; }
+    .ctm-role-badge--default { background: rgba(255, 255, 255, 0.1); color: #e4e4e7; }
 
     .ctm-message-number {
       font-size: 12px;
-      color: #9ca3af;
+      color: var(--ctm-text-tertiary);
     }
 
     .ctm-thread-count {
       font-size: 11px;
       padding: 4px 10px;
-      border-radius: 999px;
-      background: rgba(118, 75, 162, 0.2);
-      color: #d8b4fe;
+      border-radius: 20px;
+      background: linear-gradient(135deg, rgba(139, 92, 246, 0.2), rgba(59, 130, 246, 0.2));
+      color: #e0e7ff;
+      border: 1px solid rgba(139, 92, 246, 0.3);
       font-weight: 600;
     }
 
     .ctm-message-preview {
       margin: 0;
-      font-size: 14px;
-      color: #d4d4d8;
-      line-height: 1.5;
+      font-size: 15px;
+      color: var(--ctm-text-secondary);
+      line-height: 1.6;
       display: -webkit-box;
-      -webkit-line-clamp: 3;
+      -webkit-line-clamp: 2;
       -webkit-box-orient: vertical;
       overflow: hidden;
     }
@@ -1441,107 +1543,90 @@
     .ctm-message-timestamp {
       display: block;
       font-size: 12px;
-      color: #6b7280;
+      color: var(--ctm-text-tertiary);
       margin-top: 8px;
     }
 
+    .ctm-expand-arrow {
+      color: var(--ctm-text-tertiary);
+      padding: 8px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.05);
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    
+    .ctm-message-card:hover .ctm-expand-arrow {
+      background: rgba(255, 255, 255, 0.1);
+      color: var(--ctm-text-primary);
+    }
+
     .ctm-expand-arrow svg {
-      transition: transform 0.3s ease;
+      transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     }
 
     .ctm-message-card.is-expanded .ctm-expand-arrow svg {
       transform: rotate(180deg);
     }
 
+    /* =========================================
+       Expanded Thread Section
+       ========================================= */
     .ctm-message-threads {
       max-height: 0;
       overflow: hidden;
       opacity: 0;
-      border-top: 1px solid transparent;
-      transition: max-height 0.3s ease, opacity 0.3s ease, border-top 0.3s ease;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      background: rgba(0, 0, 0, 0.2);
     }
 
     .ctm-message-threads.is-open {
-      max-height: 2000px;
+      max-height: 2000px; /* Arbitrary large height */
       opacity: 1;
-      border-top-color: #333;
+      border-top: 1px solid var(--ctm-border-color);
     }
 
     .ctm-message-threads-inner {
-      padding: 20px;
+      padding: 24px;
       display: flex;
       flex-direction: column;
-      gap: 12px;
-      background: #1a1a1a;
-    }
-
-    .ctm-card-actions {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      flex-wrap: wrap;
-      gap: 12px;
+      gap: 20px;
     }
 
     .ctm-thread-summary {
-      font-size: 13px;
-      color: #9ca3af;
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-      background: rgba(102, 126, 234, 0.08);
-      border: 1px solid rgba(118, 75, 162, 0.35);
-      border-radius: 12px;
-      padding: 12px 16px;
+      background: linear-gradient(to right, rgba(59, 130, 246, 0.05), transparent);
+      border-left: 3px solid #3b82f6;
+      padding: 16px;
+      border-radius: 0 var(--ctm-radius-sm) var(--ctm-radius-sm) 0;
     }
 
     .ctm-thread-summary-heading {
       display: flex;
       justify-content: space-between;
-      font-size: 12px;
-      text-transform: uppercase;
-      letter-spacing: 0.08em;
-      color: #c4b5fd;
-      font-weight: 600;
-      gap: 12px;
-      flex-wrap: wrap;
+      align-items: center;
+      margin-bottom: 8px;
     }
 
     .ctm-thread-summary-title {
-      color: #e0e7ff;
-    }
-
-    .ctm-thread-summary-stats {
-      color: #a5b4fc;
-      font-weight: 500;
+      font-weight: 700;
+      color: #60a5fa;
+      font-size: 13px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
     }
 
     .ctm-thread-summary-description {
       margin: 0;
-      font-size: 13px;
-      color: #d1d5db;
-    }
-
-    .ctm-thread-variant-pills {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-    }
-
-    .ctm-thread-variant-pill {
-      background: rgba(103, 232, 249, 0.08);
-      border: 1px solid rgba(103, 232, 249, 0.4);
-      border-radius: 999px;
-      padding: 4px 10px;
-      font-size: 12px;
-      color: #67e8f9;
-      font-weight: 600;
+      font-size: 14px;
+      color: var(--ctm-text-secondary);
     }
 
     .ctm-thread-list {
       display: flex;
       flex-direction: column;
-      gap: 10px;
+      gap: 12px;
     }
 
     .ctm-thread-card {
@@ -1549,130 +1634,85 @@
       justify-content: space-between;
       align-items: flex-start;
       gap: 16px;
-      padding: 14px;
-      background: #252525;
-      border: 1px solid #333;
-      border-radius: 10px;
-      transition: border-color 0.2s ease;
-      flex-wrap: wrap;
+      padding: 16px;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid var(--ctm-border-color);
+      border-radius: var(--ctm-radius-md);
+      transition: all 0.2s;
     }
 
     .ctm-thread-card:hover {
-      border-color: #444;
-    }
-
-    .ctm-thread-card-header {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      margin-bottom: 4px;
-      flex-wrap: wrap;
+      background: rgba(255, 255, 255, 0.05);
+      border-color: rgba(255, 255, 255, 0.15);
     }
 
     .ctm-thread-label {
-      font-size: 12px;
+      font-size: 11px;
+      font-weight: 700;
       text-transform: uppercase;
       letter-spacing: 0.05em;
-      color: #f0abfc;
-      font-weight: 700;
+      color: #c084fc;
+      background: rgba(192, 132, 252, 0.1);
       padding: 4px 8px;
-      border-radius: 8px;
-      background: rgba(240, 171, 252, 0.12);
-      border: 1px solid rgba(240, 171, 252, 0.3);
+      border-radius: 4px;
     }
 
     .ctm-thread-message-pill {
-      font-size: 12px;
-      color: #bbf7d0;
-      background: rgba(34, 197, 94, 0.12);
-      border: 1px solid rgba(34, 197, 94, 0.35);
-      padding: 4px 10px;
-      border-radius: 999px;
-      font-weight: 600;
-    }
-
-    .ctm-thread-details {
-      flex: 1;
-      min-width: 0;
+      font-size: 11px;
+      color: #86efac;
+      background: rgba(34, 197, 94, 0.1);
+      padding: 2px 8px;
+      border-radius: 10px;
+      margin-left: 8px;
     }
 
     .ctm-thread-meta {
-      font-size: 11px;
-      color: #888;
-      margin-bottom: 6px;
+      font-size: 12px;
+      color: var(--ctm-text-tertiary);
+      margin: 8px 0;
     }
 
     .ctm-thread-preview {
+      font-size: 14px;
+      color: var(--ctm-text-secondary);
       margin: 0;
-      font-size: 13px;
-      color: #bdbdbd;
-      line-height: 1.4;
-      display: -webkit-box;
-      -webkit-line-clamp: 2;
-      -webkit-box-orient: vertical;
-      overflow: hidden;
+      line-height: 1.5;
     }
 
+    /* =========================================
+       Animations
+       ========================================= */
+    @keyframes ctmFadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    @keyframes ctmScaleIn {
+      from { opacity: 0; transform: scale(0.95); }
+      to { opacity: 1; transform: scale(1); }
+    }
+
+    /* =========================================
+       Empty State
+       ========================================= */
     .ctm-empty-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
       padding: 60px 20px;
       text-align: center;
-      color: #8b8b8b;
+      color: var(--ctm-text-tertiary);
     }
 
     .ctm-empty-state svg {
-      margin-bottom: 20px;
-      opacity: 0.35;
+      margin-bottom: 16px;
+      opacity: 0.5;
     }
 
-    @media (max-width: 600px) {
-      .ctm-modal {
-        padding: 20px;
-      }
-
-      .ctm-action-row {
-        flex-direction: column;
-      }
-    }
-
-    @keyframes slideIn {
-      from {
-        transform: translateX(450px) scale(0.8);
-        opacity: 0;
-      }
-      to {
-        transform: translateX(0) scale(1);
-        opacity: 1;
-      }
-    }
-
-    @keyframes slideOut {
-      from {
-        transform: translateX(0) scale(1);
-        opacity: 1;
-      }
-      to {
-        transform: translateX(450px) scale(0.8);
-        opacity: 0;
-      }
-    }
-
-    /* Custom scrollbar for modal */
-    #chat-thread-manager-modal ::-webkit-scrollbar {
-      width: 8px;
-    }
-
-    #chat-thread-manager-modal ::-webkit-scrollbar-track {
-      background: #1a1a1a;
-      border-radius: 4px;
-    }
-
-    #chat-thread-manager-modal ::-webkit-scrollbar-thumb {
-      background: #444;
-      border-radius: 4px;
-    }
-
-    #chat-thread-manager-modal ::-webkit-scrollbar-thumb:hover {
-      background: #555;
+    .ctm-empty-state p {
+      font-size: 16px;
+      margin: 0;
     }
   `;
   document.head.appendChild(style);
