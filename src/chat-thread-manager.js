@@ -316,10 +316,12 @@
 
   function exportChatAsJSON(chat, chatID) {
     try {
-      // Export in TypingMind's native format (raw chat object)
-      // This ensures compatibility with TypingMind's import feature
-      // Previous format wrapped the chat in metadata, which caused import errors
-      const jsonString = JSON.stringify(chat, null, 2);
+      if (!chat || !chatID) {
+        throw new Error('No chat loaded');
+      }
+
+      const payload = buildTypingMindBackupPayload(chat, chatID);
+      const jsonString = JSON.stringify(payload, null, 2);
       const blob = new Blob([jsonString], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
 
@@ -342,6 +344,58 @@
       console.error(`[${CONFIG.EXTENSION_NAME}] Error exporting chat:`, error);
       showNotification(`Export failed: ${error.message}`, 'error');
     }
+  }
+
+  function buildTypingMindBackupPayload(chat, chatID) {
+    const normalizedChat = normalizeChatForExport(chat, chatID);
+    const timestamp = new Date().toISOString();
+
+    return {
+      type: 'typingmind-backup',
+      version: 2,
+      exportedAt: timestamp,
+      source: `${CONFIG.EXTENSION_NAME}@${CONFIG.VERSION}`,
+      meta: {
+        chatCount: 1,
+        includeSettings: false,
+        includePrompts: false
+      },
+      entries: [
+        {
+          key: chatID,
+          value: normalizedChat
+        }
+      ]
+    };
+  }
+
+  function normalizeChatForExport(chat, chatID) {
+    const clone = JSON.parse(JSON.stringify(chat));
+    const fallbackID = deriveChatIdentifier(chat, chatID);
+
+    if (fallbackID) {
+      if (!clone.id) {
+        clone.id = fallbackID;
+      }
+      if (!clone.chatID) {
+        clone.chatID = fallbackID;
+      }
+    }
+
+    return clone;
+  }
+
+  function deriveChatIdentifier(chat, chatID) {
+    if (chat?.chatID) {
+      return chat.chatID;
+    }
+    if (chat?.id) {
+      return chat.id;
+    }
+    if (chatID) {
+      return chatID.replace(/^CHAT_/, '');
+    }
+    return null;
   }
 
   // ============================================
