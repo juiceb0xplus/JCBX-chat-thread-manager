@@ -328,55 +328,63 @@ From [chat thread documentation](https://docs.typingmind.com/chat-management/cha
 
 5. **No Strict Limits**: Very old branches may be archived if inactive
 
-### Thread Data Model (Hypothesis)
+### Thread Data Model ✅ CONFIRMED
 
-Since there's no official documentation, we hypothesize the structure might be:
+**Discovered on 2025-11-18 via data inspection script**
 
-**Option A: Nested Messages Array**
+TypingMind stores threads as **arrays of conversation branches** attached to individual user messages.
+
+**Actual Structure:**
 ```javascript
+// Message with threads
 {
-  chatID: "...",
+  role: "user",
+  uuid: "b60aaefa-34ea-4ea1-8036-a2c6dcf2659e",
+  content: "current message content",
+  threads: [                          // ← THREAD ARRAY (only on user messages)
+    {
+      messages: [...],                // Complete conversation branch
+      createdAt: "timestamp",
+      userMessageContent: ...         // User's message variant
+    },
+    // ... more thread variants
+  ],
+  createdAt: "2025-08-05T03:03:40.599Z"
+}
+
+// Thread object structure
+{
   messages: [
-    { role: "user", content: "Hello" },
-    { role: "assistant", content: "Hi", threadID: "main" },
+    {
+      role: "assistant",
+      uuid: "unique-id",
+      model: "chatgpt-4o-latest",
+      content: "assistant response",
+      usage: { /* token usage */ },
+      createdAt: "timestamp"
+    },
     {
       role: "user",
-      content: "Hello again",
-      branches: [
-        { threadID: "branch1", messages: [...] },
-        { threadID: "branch2", messages: [...] }
-      ]
+      uuid: "another-id",
+      content: [{ text: "...", type: "text" }],
+      createdAt: "timestamp"
     }
-  ]
-}
-```
-
-**Option B: Flat Messages with Pointers**
-```javascript
-{
-  messages: [
-    { id: "msg1", role: "user", content: "Hello", nextMessageID: "msg2" },
-    { id: "msg2", role: "assistant", content: "Hi", nextMessageID: "msg3" },
-    { id: "msg3", role: "user", content: "Variant A", nextMessageID: "msg4" },
-    { id: "msg3b", role: "user", content: "Variant B", nextMessageID: "msg5", parentID: "msg2" }
+    // ... rest of conversation from this branch
   ],
-  currentThread: ["msg1", "msg2", "msg3", "msg4"]
+  createdAt: "2025-08-04T19:38:12.372Z",
+  userMessageContent: "..." | [...]  // Array or String
 }
 ```
 
-**Option C: Separate Thread Metadata**
-```javascript
-{
-  messages: [...], // Linear array
-  threads: {
-    "thread1": { path: [0, 1, 2, 3], active: true },
-    "thread2": { path: [0, 1, 2, 5], active: false }
-  },
-  currentThreadID: "thread1"
-}
-```
+**Key Findings:**
+- ✅ Only USER messages have threads (assistant messages don't branch)
+- ✅ Each thread contains a complete conversation branch from that point forward
+- ✅ Active thread = `chat.messages` array
+- ✅ Archived threads = `message.threads[]` array
+- ✅ Real usage: Up to 22 threads observed on a single message!
+- ✅ Thread content can be String or Array format
 
-**→ We need to inspect actual data to confirm!**
+**See [FINDINGS.md](./FINDINGS.md) for complete data model documentation.**
 
 ### UI Indicators (Need to find)
 
