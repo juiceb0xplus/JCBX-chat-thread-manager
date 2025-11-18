@@ -6,7 +6,7 @@ A small browser-side helper that lets you browse, prune, and export every branch
 
 - Lists every message plus its alternate branches in one scrollable panel
 - Delete individual variants or flatten a whole message/chat when things get messy
-- Export the active chat as a TypingMind-compatible JSON file
+- Export the active chat as a TypingMind backup file that imports directly
 - Dark UI, keyboard shortcut (`Ctrl/Cmd+Shift+T`), and zero network calls
 
 ## Setup
