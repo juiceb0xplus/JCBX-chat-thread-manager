@@ -249,7 +249,33 @@
     return '[No preview available]';
   }
 
+  function truncateText(text, maxLength = 80) {
+    if (typeof text !== 'string') {
+      return '';
+    }
+
+    if (text.length <= maxLength) {
+      return text;
+    }
+
+    const sliceLength = Math.max(0, maxLength - 1);
+    return `${text.slice(0, sliceLength)}…`;
+  }
+
   function getThreadPreview(thread) {
+    if (!thread) {
+      return '[No preview available]';
+    }
+
+    const userVariant = thread.userMessageContent;
+    if (userVariant !== undefined && userVariant !== null) {
+      const preview = getMessagePreview(userVariant);
+      if (typeof preview === 'string' && preview.trim().length > 0) {
+        return preview;
+      }
+      return '[No preview available]';
+    }
+
     if (!thread.messages || thread.messages.length === 0) {
       return '[Empty thread]';
     }
