@@ -393,6 +393,39 @@
     console.log(`[${CONFIG.EXTENSION_NAME}] Restored backup: ${backupKey}`);
   }
 
+  function deleteBackup(backupKey) {
+    try {
+      localStorage.removeItem(backupKey);
+      console.log(`[${CONFIG.EXTENSION_NAME}] Deleted backup: ${backupKey}`);
+      return true;
+    } catch (e) {
+      console.error(`[${CONFIG.EXTENSION_NAME}] Failed to delete backup:`, e);
+      return false;
+    }
+  }
+
+  function clearAllBackups() {
+    const backups = listAllBackups();
+    let deletedCount = 0;
+
+    backups.forEach(backup => {
+      try {
+        localStorage.removeItem(backup.key);
+        deletedCount++;
+      } catch (e) {
+        console.warn(`[${CONFIG.EXTENSION_NAME}] Failed to delete backup ${backup.key}:`, e);
+      }
+    });
+
+    // Also clear in-memory backups
+    if (window._csaBackups) {
+      window._csaBackups = {};
+    }
+
+    console.log(`[${CONFIG.EXTENSION_NAME}] Cleared ${deletedCount} backups`);
+    return deletedCount;
+  }
+
   // ============================================
   // Export System (TypingMind Compatible)
   // ============================================
@@ -827,15 +860,26 @@
       <div style="margin-top: 20px; padding-top: 16px; border-top: 1px solid #e5e7eb;">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
           <h3 style="margin: 0; font-size: 16px; font-weight: 600;">💾 Backups</h3>
-          <button id="toggle-backups-btn" style="
-            padding: 4px 12px;
-            background: #e5e7eb;
-            color: #374151;
-            border: none;
-            border-radius: 4px;
-            font-size: 12px;
-            cursor: pointer;
-          ">Show Backups</button>
+          <div style="display: flex; gap: 8px;">
+            <button id="clear-all-backups-btn" style="
+              padding: 4px 12px;
+              background: rgba(239, 68, 68, 0.1);
+              color: #ef4444;
+              border: 1px solid rgba(239, 68, 68, 0.3);
+              border-radius: 4px;
+              font-size: 12px;
+              cursor: pointer;
+            ">🗑️ Clear All</button>
+            <button id="toggle-backups-btn" style="
+              padding: 4px 12px;
+              background: #e5e7eb;
+              color: #374151;
+              border: none;
+              border-radius: 4px;
+              font-size: 12px;
+              cursor: pointer;
+            ">Show Backups</button>
+          </div>
         </div>
         <div id="backups-container" style="display: none;">
           <div id="backups-list" style="font-size: 13px; color: #6b7280;">
@@ -1239,6 +1283,36 @@
         }
       });
     }
+
+    // Clear all backups button
+    const clearAllBackupsBtn = modal.querySelector('#clear-all-backups-btn');
+    if (clearAllBackupsBtn) {
+      clearAllBackupsBtn.addEventListener('click', () => {
+        const backups = listAllBackups();
+        if (backups.length === 0) {
+          showNotification('No backups to delete', 'info');
+          return;
+        }
+
+        const confirmed = confirm(
+          `Delete ALL ${backups.length} backup(s)?\n\n` +
+          'This will permanently remove all stored backups.\n' +
+          'This action cannot be undone.\n\n' +
+          'Continue?'
+        );
+
+        if (!confirmed) return;
+
+        const deletedCount = clearAllBackups();
+        showNotification(`Deleted ${deletedCount} backup(s)`, 'success');
+
+        // Refresh backups list if visible
+        const container = document.getElementById('backups-container');
+        if (container && container.style.display !== 'none') {
+          renderBackupsList();
+        }
+      });
+    }
   }
 
   function renderBackupsList() {
@@ -1247,12 +1321,24 @@
 
     const backups = listAllBackups();
 
+    // Calculate total size of backups
+    let totalBackupSize = 0;
+    backups.forEach(backup => {
+      try {
+        const data = localStorage.getItem(backup.key);
+        if (data) totalBackupSize += data.length * 2; // Approximate bytes (UTF-16)
+      } catch (e) { /* ignore */ }
+    });
+
     if (backups.length === 0) {
       container.innerHTML = '<p style="color: #6b7280;">No backups found. Backups are created automatically when flattening chats.</p>';
       return;
     }
 
     container.innerHTML = `
+      <div style="margin-bottom: 12px; padding: 8px 12px; background: rgba(59, 130, 246, 0.1); border-radius: 6px; font-size: 12px;">
+        <strong>${backups.length}</strong> backup(s) using approximately <strong>${formatBytes(totalBackupSize)}</strong> of localStorage
+      </div>
       <div style="display: flex; flex-direction: column; gap: 8px; max-height: 200px; overflow-y: auto;">
         ${backups.slice(0, 20).map(backup => `
           <div style="
@@ -1263,7 +1349,7 @@
             background: #f9fafb;
             border-radius: 6px;
             border: 1px solid #e5e7eb;
-          ">
+          " class="backup-item" data-backup-key="${backup.key}">
             <div style="flex: 1; min-width: 0;">
               <div style="font-weight: 500; color: #111827; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
                 ${escapeHtml(backup.title)}
@@ -1299,6 +1385,19 @@
                   cursor: pointer;
                 "
               >♻️ Restore</button>
+              <button
+                class="backup-delete-btn"
+                data-backup-key="${backup.key}"
+                style="
+                  padding: 6px 12px;
+                  background: rgba(239, 68, 68, 0.1);
+                  color: #ef4444;
+                  border: 1px solid rgba(239, 68, 68, 0.3);
+                  border-radius: 4px;
+                  font-size: 12px;
+                  cursor: pointer;
+                "
+              >🗑️</button>
             </div>
           </div>
         `).join('')}
@@ -1332,6 +1431,27 @@
           await scanAllChats();
         } catch (error) {
           showNotification(`Restore failed: ${error.message}`, 'error');
+        }
+      });
+    });
+
+    // Delete individual backup buttons
+    container.querySelectorAll('.backup-delete-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const backupKey = e.target.dataset.backupKey;
+        const confirmed = confirm(
+          'Delete this backup?\n\n' +
+          'This action cannot be undone.\n\n' +
+          'Continue?'
+        );
+
+        if (!confirmed) return;
+
+        if (deleteBackup(backupKey)) {
+          showNotification('Backup deleted', 'success');
+          renderBackupsList(); // Refresh the list
+        } else {
+          showNotification('Failed to delete backup', 'error');
         }
       });
     });
@@ -1659,7 +1779,9 @@
     // Backup management
     createBackup,
     listAllBackups,
-    restoreFromBackup
+    restoreFromBackup,
+    deleteBackup,
+    clearAllBackups
   };
 
   console.log(`[${CONFIG.EXTENSION_NAME}] Loaded. Press Ctrl+Shift+S to open.`);
