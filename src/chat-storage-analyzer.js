@@ -240,7 +240,7 @@
       threadMessages,
       estimatedThreadSizeBytes: estimatedThreadSize,
       estimatedSavingsPercent: sizeBytes > 0 ? (estimatedThreadSize / sizeBytes * 100) : 0,
-      title: chat.title || chat.name || 'Untitled Chat',
+      title: chat.chatTitle || chat.title || chat.name || 'Untitled Chat',
       createdAt: chat.createdAt,
       updatedAt: chat.updatedAt
     };
@@ -337,6 +337,12 @@
       // Store in memory as fallback
       window._csaBackups = window._csaBackups || {};
       window._csaBackups[backupKey] = backup;
+      // Warn user that backup is only in memory
+      showNotification(
+        'Warning: Backup saved to memory only (localStorage full). It will be lost on page refresh.',
+        'warning',
+        5000
+      );
       return backupKey;
     }
   }
@@ -420,8 +426,12 @@
       }
 
       // Create export data structure
-      // TypingMind import expects an array of chat objects or a single chat object
-      const exportData = chatsToExport.length === 1 ? chatsToExport[0] : chatsToExport;
+      // TypingMind expects { data: { chats: [...] } } format for imports
+      const exportData = {
+        data: {
+          chats: chatsToExport
+        }
+      };
 
       // Generate filename
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
@@ -452,15 +462,19 @@
     try {
       const backup = JSON.parse(backupData);
 
-      // Export just the raw chat data (backup.data), NOT the wrapper
-      // This makes it directly importable to TypingMind
+      // Export in TypingMind-compatible format { data: { chats: [...] } }
       const chatData = backup.data;
+      const exportData = {
+        data: {
+          chats: [chatData]
+        }
+      };
 
       const timestamp = new Date(backup.timestamp).toISOString().replace(/[:.]/g, '-');
       const title = (chatData.chatTitle || chatData.title || 'untitled').replace(/[^a-z0-9]/gi, '-').substring(0, 30);
       const filename = `typingmind-chat-${title}-${timestamp}.json`;
 
-      downloadJSON(chatData, filename);
+      downloadJSON(exportData, filename);
 
       showNotification('Backup exported successfully', 'success');
     } catch (error) {
@@ -626,31 +640,10 @@
 
     const modal = document.createElement('div');
     modal.id = 'chat-storage-analyzer-modal';
-    modal.style.cssText = `
-      position: fixed;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      background: rgba(0, 0, 0, 0.5);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      z-index: 10000;
-      backdrop-filter: blur(4px);
-    `;
+    modal.className = 'csa-overlay';
 
     const content = document.createElement('div');
-    content.style.cssText = `
-      background: white;
-      padding: 24px;
-      border-radius: 12px;
-      max-width: 900px;
-      width: 95%;
-      max-height: 85vh;
-      overflow-y: auto;
-      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
-    `;
+    content.className = 'csa-modal';
 
     content.innerHTML = getModalHTML();
     modal.appendChild(content);
@@ -950,24 +943,13 @@
       </table>
     `;
 
-    // Setup row click handlers
-    container.querySelectorAll('.chat-row').forEach(row => {
-      row.addEventListener('click', (e) => {
-        if (e.target.type === 'checkbox') return;
-        const checkbox = row.querySelector('.chat-checkbox');
-        checkbox.checked = !checkbox.checked;
-        handleCheckboxChange(checkbox);
-      });
-    });
+    // Use event delegation for better performance and to avoid listener leaks
+    container.onclick = (e) => {
+      const row = e.target.closest('.chat-row');
+      const checkbox = e.target.closest('.chat-checkbox');
+      const selectAllCheckbox = e.target.closest('#select-all-checkbox');
 
-    container.querySelectorAll('.chat-checkbox').forEach(checkbox => {
-      checkbox.addEventListener('change', () => handleCheckboxChange(checkbox));
-    });
-
-    const selectAllCheckbox = document.getElementById('select-all-checkbox');
-    if (selectAllCheckbox) {
-      selectAllCheckbox.checked = filteredChats.every(c => state.selectedChats.has(c.id));
-      selectAllCheckbox.addEventListener('change', () => {
+      if (selectAllCheckbox) {
         filteredChats.forEach(chat => {
           if (selectAllCheckbox.checked) {
             state.selectedChats.add(chat.id);
@@ -977,7 +959,27 @@
         });
         renderChatList();
         updateFlattenButton();
-      });
+        return;
+      }
+
+      if (checkbox) {
+        handleCheckboxChange(checkbox);
+        return;
+      }
+
+      if (row) {
+        const rowCheckbox = row.querySelector('.chat-checkbox');
+        if (rowCheckbox) {
+          rowCheckbox.checked = !rowCheckbox.checked;
+          handleCheckboxChange(rowCheckbox);
+        }
+      }
+    };
+
+    // Update select-all checkbox state
+    const selectAllCheckbox = document.getElementById('select-all-checkbox');
+    if (selectAllCheckbox) {
+      selectAllCheckbox.checked = filteredChats.length > 0 && filteredChats.every(c => state.selectedChats.has(c.id));
     }
   }
 
@@ -1138,17 +1140,32 @@
       if (e.target === modal) closeModal();
     });
 
+    // Escape key to close
+    const escapeHandler = (e) => {
+      if (e.key === 'Escape') {
+        closeModal();
+        document.removeEventListener('keydown', escapeHandler);
+      }
+    };
+    document.addEventListener('keydown', escapeHandler);
+
+    // Store handler reference for cleanup
+    modal._escapeHandler = escapeHandler;
+
     // Scan button
     const scanBtn = modal.querySelector('#scan-chats-btn');
     if (scanBtn) {
       scanBtn.addEventListener('click', scanAllChats);
     }
 
-    // Cutoff input
+    // Cutoff input with validation
     const cutoffInput = modal.querySelector('#cutoff-input');
     if (cutoffInput) {
       cutoffInput.addEventListener('change', (e) => {
-        state.cutoffKB = parseFloat(e.target.value) || 0;
+        const value = parseFloat(e.target.value);
+        // Ensure non-negative value
+        state.cutoffKB = Math.max(0, isNaN(value) ? 0 : value);
+        e.target.value = state.cutoffKB; // Update input to reflect validated value
         renderChatList();
       });
     }
@@ -1343,7 +1360,13 @@
 
   function closeModal() {
     const modal = document.getElementById('chat-storage-analyzer-modal');
-    if (modal) modal.remove();
+    if (modal) {
+      // Clean up escape key handler
+      if (modal._escapeHandler) {
+        document.removeEventListener('keydown', modal._escapeHandler);
+      }
+      modal.remove();
+    }
     state.uiElements.modal = null;
   }
 
@@ -1396,9 +1419,198 @@
     }, duration);
   }
 
-  // Add CSS animations
+  // Add CSS animations and styles
   const style = document.createElement('style');
   style.textContent = `
+    /* =========================================
+       CSS Variables & Dark Theme
+       ========================================= */
+    :root {
+      --csa-bg-overlay: rgba(0, 0, 0, 0.6);
+      --csa-bg-modal: rgba(20, 20, 23, 0.95);
+      --csa-bg-card: rgba(255, 255, 255, 0.03);
+      --csa-bg-card-hover: rgba(255, 255, 255, 0.06);
+      --csa-border-color: rgba(255, 255, 255, 0.08);
+      --csa-border-hover: rgba(255, 255, 255, 0.15);
+      --csa-text-primary: #ffffff;
+      --csa-text-secondary: #a1a1aa;
+      --csa-text-tertiary: #71717a;
+      --csa-accent-blue: #3b82f6;
+      --csa-accent-purple: #8b5cf6;
+      --csa-accent-green: #10b981;
+      --csa-accent-red: #ef4444;
+      --csa-radius-lg: 16px;
+      --csa-radius-md: 12px;
+      --csa-radius-sm: 8px;
+    }
+
+    /* =========================================
+       Modal Overlay & Container
+       ========================================= */
+    .csa-overlay {
+      position: fixed;
+      inset: 0;
+      background: var(--csa-bg-overlay);
+      backdrop-filter: blur(8px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 10000;
+      padding: 20px;
+      animation: csaFadeIn 0.2s ease-out;
+    }
+
+    .csa-modal {
+      background: var(--csa-bg-modal);
+      color: var(--csa-text-primary);
+      padding: 24px;
+      border-radius: var(--csa-radius-lg);
+      border: 1px solid var(--csa-border-color);
+      max-width: 900px;
+      width: 95%;
+      max-height: 85vh;
+      overflow-y: auto;
+      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 10px 10px -5px rgba(0, 0, 0, 0.4);
+      animation: csaScaleIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .csa-modal::-webkit-scrollbar {
+      width: 8px;
+    }
+    .csa-modal::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    .csa-modal::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 4px;
+    }
+    .csa-modal::-webkit-scrollbar-thumb:hover {
+      background: rgba(255, 255, 255, 0.2);
+    }
+
+    /* Dark theme overrides for modal content */
+    .csa-modal h2, .csa-modal h3 {
+      color: var(--csa-text-primary);
+    }
+    .csa-modal label, .csa-modal span {
+      color: var(--csa-text-secondary);
+    }
+
+    /* Summary stats dark theme */
+    .csa-modal [style*="background: #f3f4f6"] {
+      background: var(--csa-bg-card) !important;
+      border: 1px solid var(--csa-border-color);
+    }
+    .csa-modal [style*="color: #6b7280"] {
+      color: var(--csa-text-tertiary) !important;
+    }
+    .csa-modal [style*="color: #374151"] {
+      color: var(--csa-text-secondary) !important;
+    }
+    .csa-modal [style*="color: #111827"] {
+      color: var(--csa-text-primary) !important;
+    }
+
+    /* Input/Select dark theme */
+    .csa-modal input[type="number"],
+    .csa-modal select {
+      background: var(--csa-bg-card) !important;
+      border-color: var(--csa-border-color) !important;
+      color: var(--csa-text-primary) !important;
+    }
+    .csa-modal input[type="number"]:focus,
+    .csa-modal select:focus {
+      border-color: var(--csa-accent-blue) !important;
+      outline: none;
+    }
+
+    /* Table dark theme */
+    .csa-modal table {
+      color: var(--csa-text-primary);
+    }
+    .csa-modal thead {
+      background: rgba(255, 255, 255, 0.02) !important;
+    }
+    .csa-modal th {
+      color: var(--csa-text-secondary) !important;
+      border-color: var(--csa-border-color) !important;
+    }
+    .csa-modal td {
+      border-color: var(--csa-border-color) !important;
+    }
+    .csa-modal tr[style*="background: #ffffff"],
+    .csa-modal tr[style*="background: #f9fafb"] {
+      background: transparent !important;
+    }
+    .csa-modal tr:hover {
+      background: var(--csa-bg-card-hover) !important;
+    }
+    .csa-modal tr[style*="background: #eff6ff"] {
+      background: rgba(59, 130, 246, 0.1) !important;
+    }
+
+    /* Chat list container */
+    .csa-modal #chat-list-container {
+      background: var(--csa-bg-card);
+      border-color: var(--csa-border-color) !important;
+    }
+
+    /* Backups section */
+    .csa-modal [style*="background: #f9fafb"][style*="border-radius: 6px"] {
+      background: var(--csa-bg-card) !important;
+      border-color: var(--csa-border-color) !important;
+    }
+
+    /* Button style overrides */
+    .csa-modal button[style*="background: #e5e7eb"] {
+      background: var(--csa-bg-card) !important;
+      color: var(--csa-text-primary) !important;
+      border: 1px solid var(--csa-border-color) !important;
+    }
+    .csa-modal button[style*="background: #e5e7eb"]:hover {
+      background: var(--csa-bg-card-hover) !important;
+    }
+
+    /* Close button */
+    .csa-modal #close-storage-modal {
+      color: var(--csa-text-secondary);
+      transition: color 0.2s;
+    }
+    .csa-modal #close-storage-modal:hover {
+      color: var(--csa-text-primary);
+    }
+
+    /* Footer text */
+    .csa-modal [style*="border-top: 1px solid #e5e7eb"] {
+      border-color: var(--csa-border-color) !important;
+    }
+
+    /* Progress modal dark theme */
+    #progress-modal > div {
+      background: var(--csa-bg-modal) !important;
+      color: var(--csa-text-primary) !important;
+      border: 1px solid var(--csa-border-color);
+    }
+    #progress-modal [style*="background: #e5e7eb"] {
+      background: var(--csa-bg-card) !important;
+    }
+    #progress-modal #progress-text {
+      color: var(--csa-text-secondary) !important;
+    }
+
+    /* =========================================
+       Animations
+       ========================================= */
+    @keyframes csaFadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    @keyframes csaScaleIn {
+      from { opacity: 0; transform: scale(0.95); }
+      to { opacity: 1; transform: scale(1); }
+    }
+
     @keyframes slideIn {
       from {
         transform: translateX(400px);
