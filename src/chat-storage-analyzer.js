@@ -18,6 +18,7 @@
  * - Optimized size calculations (removed unnecessary Blob creation)
  * - Fixed memory leak in MutationObserver
  * - Added edge case handling in formatBytes
+ * - Comprehensive thread cleanup (images, attachments, metadata)
  *
  * Installation:
  * 1. Host this file on a public URL (GitHub Pages, etc.)
@@ -604,7 +605,55 @@
   // ============================================
 
   /**
-   * Flattens a chat by removing all thread data.
+   * Recursively removes all thread-related data from a message.
+   * This ensures images and other content within threads are fully cleaned.
+   */
+  function cleanMessageThreadData(msg) {
+    if (!msg || typeof msg !== 'object') return msg;
+
+    // Remove primary threads array (contains all thread messages with their images)
+    if ('threads' in msg) {
+      delete msg.threads;
+    }
+
+    // Remove any thread-related metadata that might reference deleted content
+    // These are potential property names TypingMind might use
+    const threadRelatedProps = [
+      'threadId',
+      'threadIndex',
+      'activeThreadIndex',
+      'selectedThreadIndex',
+      'parentThreadId',
+      'branchId',
+      'branchIndex',
+      'threadAttachments',
+      'threadImages',
+      'threadFiles'
+    ];
+
+    threadRelatedProps.forEach(prop => {
+      if (prop in msg) {
+        delete msg[prop];
+      }
+    });
+
+    // If message has nested content array (multimodal), ensure no thread refs there
+    if (Array.isArray(msg.content)) {
+      msg.content = msg.content.map(part => {
+        if (part && typeof part === 'object') {
+          // Remove any thread references from content parts
+          if ('threadId' in part) delete part.threadId;
+          if ('fromThread' in part) delete part.fromThread;
+        }
+        return part;
+      });
+    }
+
+    return msg;
+  }
+
+  /**
+   * Flattens a chat by removing all thread data including images.
    * Uses deep clone to prevent reference issues.
    * Creates automatic backup before modification.
    */
@@ -640,19 +689,22 @@
       // This ensures we don't accidentally mutate the original or backup
       const flattenedChat = JSON.parse(chatString);
 
-      // Remove threads from all messages
-      // Be conservative: only remove 'threads' property, preserve everything else
+      // Remove threads and all thread-related data from all messages
+      // This includes images, attachments, and any metadata within threads
       flattenedChat.messages = flattenedChat.messages.map(msg => {
-        // Skip null/undefined messages (preserve them as-is)
-        if (!msg || typeof msg !== 'object') return msg;
+        return cleanMessageThreadData(msg);
+      });
 
-        // Only delete the threads property if it exists
-        // This is conservative - we don't delete unknown properties
-        if ('threads' in msg) {
-          delete msg.threads;
+      // Also clean any chat-level thread metadata
+      const chatLevelThreadProps = [
+        'activeThreads',
+        'threadHistory',
+        'threadMetadata'
+      ];
+      chatLevelThreadProps.forEach(prop => {
+        if (prop in flattenedChat) {
+          delete flattenedChat[prop];
         }
-
-        return msg;
       });
 
       // Update timestamp to track when flattening occurred
