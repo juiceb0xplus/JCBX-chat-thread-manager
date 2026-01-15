@@ -1,6 +1,6 @@
 /**
  * TypingMind Chat Storage Analyzer Extension
- * Version: 1.0.0
+ * Version: 1.1.0
  *
  * Features:
  * - Scan all stored chats to analyze storage usage
@@ -9,6 +9,15 @@
  * - Configurable size cutoff filter
  * - Batch flatten selected chats to reduce storage
  * - Automatic backups before destructive operations
+ *
+ * v1.1.0 Changes:
+ * - Fixed critical data corruption bug (shallow copy -> deep clone)
+ * - Added validation before saving flattened chats
+ * - Improved null/undefined handling throughout
+ * - Better error messages and recovery guidance
+ * - Optimized size calculations (removed unnecessary Blob creation)
+ * - Fixed memory leak in MutationObserver
+ * - Added edge case handling in formatBytes
  *
  * Installation:
  * 1. Host this file on a public URL (GitHub Pages, etc.)
@@ -26,7 +35,7 @@
 
   const CONFIG = {
     EXTENSION_NAME: 'ChatStorageAnalyzer',
-    VERSION: '1.0.0',
+    VERSION: '1.1.0',
     DB_NAME: 'keyval-store',
     OBJECT_STORE: 'keyval',
     BACKUP_PREFIX: 'CSA_BACKUP_',
@@ -47,6 +56,7 @@
     sortBy: 'size', // 'size' or 'threads'
     sortOrder: 'desc',
     uiElements: {},
+    uiObserver: null,
     isInitialized: false
   };
 
@@ -202,7 +212,26 @@
   // ============================================
 
   function analyzeChat(chat) {
-    const sizeBytes = new Blob([JSON.stringify(chat)]).size;
+    // Handle null/undefined chat gracefully
+    if (!chat || typeof chat !== 'object') {
+      return {
+        sizeBytes: 0,
+        sizeKB: 0,
+        sizeMB: 0,
+        totalMessages: 0,
+        totalThreads: 0,
+        messagesWithThreads: 0,
+        threadMessages: 0,
+        estimatedThreadSizeBytes: 0,
+        estimatedSavingsPercent: 0,
+        title: 'Invalid Chat',
+        createdAt: null,
+        updatedAt: null
+      };
+    }
+
+    const chatString = JSON.stringify(chat);
+    const sizeBytes = chatString.length; // More efficient than Blob
 
     let totalMessages = 0;
     let totalThreads = 0;
@@ -213,13 +242,16 @@
       totalMessages = chat.messages.length;
 
       chat.messages.forEach(msg => {
+        // Skip null/undefined messages
+        if (!msg || typeof msg !== 'object') return;
+
         if (msg.threads && Array.isArray(msg.threads) && msg.threads.length > 0) {
           messagesWithThreads++;
           totalThreads += msg.threads.length;
 
           // Count messages within threads
           msg.threads.forEach(thread => {
-            if (thread.messages && Array.isArray(thread.messages)) {
+            if (thread && thread.messages && Array.isArray(thread.messages)) {
               threadMessages += thread.messages.length;
             }
           });
@@ -247,12 +279,16 @@
   }
 
   function calculateThreadSize(chat) {
-    if (!chat.messages || !Array.isArray(chat.messages)) return 0;
+    if (!chat || !chat.messages || !Array.isArray(chat.messages)) return 0;
 
     let threadSize = 0;
     chat.messages.forEach(msg => {
+      // Skip null/undefined messages
+      if (!msg || typeof msg !== 'object') return;
+
       if (msg.threads && Array.isArray(msg.threads)) {
-        threadSize += new Blob([JSON.stringify(msg.threads)]).size;
+        // Use string length instead of Blob for efficiency
+        threadSize += JSON.stringify(msg.threads).length;
       }
     });
 
@@ -311,6 +347,24 @@
 
   function getFilteredChats() {
     return state.chats.filter(chat => chat.sizeKB >= state.cutoffKB);
+  }
+
+  // ============================================
+  // Validation Helpers
+  // ============================================
+
+  /**
+   * Validates that a chat object has the minimum required structure.
+   * Conservative validation to avoid corrupting data.
+   */
+  function validateChatStructure(chat) {
+    if (!chat || typeof chat !== 'object') {
+      return { valid: false, reason: 'Chat is null or not an object' };
+    }
+    if (!Array.isArray(chat.messages)) {
+      return { valid: false, reason: 'Chat messages is not an array' };
+    }
+    return { valid: true };
   }
 
   // ============================================
@@ -386,10 +440,25 @@
 
     const backup = JSON.parse(backupData);
 
+    // Validate backup structure before restoring
+    if (!backup || !backup.data || !backup.chatID) {
+      throw new Error('Invalid backup format');
+    }
+
+    const validation = validateChatStructure(backup.data);
+    if (!validation.valid) {
+      throw new Error(`Backup data is corrupted: ${validation.reason}`);
+    }
+
     // The backup.data contains the raw chat object - directly compatible with TypingMind
     await updateChat(backup.chatID, backup.data);
 
-    showNotification('Backup restored successfully', 'success');
+    // Inform user they may need to refresh to see changes
+    showNotification(
+      'Backup restored. Refresh the page or switch chats to see changes.',
+      'success',
+      5000
+    );
     console.log(`[${CONFIG.EXTENSION_NAME}] Restored backup: ${backupKey}`);
   }
 
@@ -534,11 +603,24 @@
   // Flatten Operations
   // ============================================
 
+  /**
+   * Flattens a chat by removing all thread data.
+   * Uses deep clone to prevent reference issues.
+   * Creates automatic backup before modification.
+   */
   async function flattenChat(chatID) {
+    let backupKey = null;
+
     try {
       const chat = await getChat(chatID);
       if (!chat) {
         throw new Error(`Chat ${chatID} not found`);
+      }
+
+      // Validate chat structure before processing
+      const validation = validateChatStructure(chat);
+      if (!validation.valid) {
+        throw new Error(`Invalid chat structure: ${validation.reason}`);
       }
 
       // Check if there are any threads to remove
@@ -547,26 +629,45 @@
         return { success: true, threadsRemoved: 0, bytesSaved: 0 };
       }
 
-      // Create backup
-      await createBackup(chatID, chat);
+      // Create backup and store key for potential rollback
+      backupKey = await createBackup(chatID, chat);
 
-      // Calculate size before
-      const sizeBefore = new Blob([JSON.stringify(chat)]).size;
+      // Stringify once for efficiency - reuse for size and clone
+      const chatString = JSON.stringify(chat);
+      const sizeBefore = chatString.length;
 
-      // Remove all threads
-      const flattenedChat = { ...chat };
-      flattenedChat.messages = chat.messages.map(msg => {
-        const { threads, ...messageWithoutThreads } = msg;
-        return messageWithoutThreads;
+      // CRITICAL: Deep clone to prevent reference issues
+      // This ensures we don't accidentally mutate the original or backup
+      const flattenedChat = JSON.parse(chatString);
+
+      // Remove threads from all messages
+      // Be conservative: only remove 'threads' property, preserve everything else
+      flattenedChat.messages = flattenedChat.messages.map(msg => {
+        // Skip null/undefined messages (preserve them as-is)
+        if (!msg || typeof msg !== 'object') return msg;
+
+        // Only delete the threads property if it exists
+        // This is conservative - we don't delete unknown properties
+        if ('threads' in msg) {
+          delete msg.threads;
+        }
+
+        return msg;
       });
 
-      // Update timestamp
+      // Update timestamp to track when flattening occurred
       flattenedChat.updatedAt = new Date().toISOString();
 
-      // Calculate size after
-      const sizeAfter = new Blob([JSON.stringify(flattenedChat)]).size;
+      // Validate the flattened result before saving
+      const postValidation = validateChatStructure(flattenedChat);
+      if (!postValidation.valid) {
+        throw new Error(`Flattened chat failed validation: ${postValidation.reason}`);
+      }
 
-      // Save
+      // Calculate size after
+      const sizeAfter = JSON.stringify(flattenedChat).length;
+
+      // Save the flattened chat
       await updateChat(chatID, flattenedChat);
 
       return {
@@ -574,9 +675,16 @@
         threadsRemoved: analysis.totalThreads,
         bytesSaved: sizeBefore - sizeAfter
       };
+
     } catch (error) {
       console.error(`[${CONFIG.EXTENSION_NAME}] Error flattening chat ${chatID}:`, error);
-      return { success: false, error: error.message };
+
+      // If we created a backup but failed to save, inform user
+      if (backupKey) {
+        console.log(`[${CONFIG.EXTENSION_NAME}] Backup available at: ${backupKey}`);
+      }
+
+      return { success: false, error: error.message, backupKey };
     }
   }
 
@@ -1462,6 +1570,12 @@
   // ============================================
 
   function observeUIChanges() {
+    // Disconnect existing observer if any (prevent duplicates)
+    if (state.uiObserver) {
+      state.uiObserver.disconnect();
+      state.uiObserver = null;
+    }
+
     const observer = new MutationObserver(() => {
       if (!document.querySelector('[data-element-id="workspace-tab-storage-analyzer"]')) {
         initializeUI();
@@ -1471,6 +1585,8 @@
     const workspaceBar = document.querySelector('[data-element-id="workspace-bar"]');
     if (workspaceBar) {
       observer.observe(workspaceBar, { childList: true, subtree: false });
+      // Store observer reference for cleanup
+      state.uiObserver = observer;
     }
   }
 
@@ -1491,11 +1607,12 @@
   }
 
   function formatBytes(bytes) {
-    if (bytes === 0) return '0 B';
+    // Handle edge cases: negative, zero, NaN, undefined
+    if (!bytes || bytes <= 0 || !Number.isFinite(bytes)) return '0 B';
 
     const k = 1024;
     const sizes = ['B', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    const i = Math.min(Math.floor(Math.log(bytes) / Math.log(k)), sizes.length - 1);
 
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   }
